@@ -429,8 +429,23 @@ df <- df %>%
     rename_with(~str_remove(., "._VAL")) %>%
     select(-ends_with("_NAME"))
 
-# Save result as CSV
-write_csv(df, csv_file)
+# View results
+df[1:5, 15:20]
+```
+
+```
+##   AMIKA AMIKAC_RIS  AMOCL AMOCLA_RIS AMPIC AMPICI_RIS
+## 1 <= 16     NOINTP  = 0.5      INTER   = 4     RESIST
+## 2  <= 4       SUSC   <NA>       <NA>  > 32     RESIST
+## 3  <= 4       SUSC    = 4       SUSC   = 4       SUSC
+## 4  <= 4       SUSC    = 2       SUSC   > 8     RESIST
+## 5  > 32     RESIST    > 8     RESIST   > 8     RESIST
 ```
 
 After saving the results to a CSV file, we are done.
+
+
+```r
+# Save result as CSV
+write_csv(df, csv_file)
+```
