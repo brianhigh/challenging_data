@@ -241,8 +241,8 @@ first.
 temp <- tempfile()
 readLines(txt_file, encoding = "UTF-16LE", skipNul = TRUE) %>%
     writeLines(temp)
-df <- read_delim(temp, col_names = FALSE, name_repair = make.names,
-    na = "")
+df <- read_delim(temp, delim = "\t", col_names = FALSE, na = "",
+    name_repair = make.names)
 res <- file.remove(temp)
 ```
 
