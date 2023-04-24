@@ -273,15 +273,20 @@ Now, all we need to do is remove extra spaces from the value columns, abbreviate
 the names of the drug value columns, and remove the original drug name columns. 
 We won't worry about proving column names for the non-drug columns right now.
 
-```{r final_cleanup_and_save}
+```{r final_cleanup}
 # Clean up data
 df <- df %>% 
   mutate(across(ends_with('_VAL'), ~ str_replace_all(.x, '\\s+', ' '))) %>%
   rename_with(~ str_remove(., '._VAL')) %>%
   select(-ends_with('_NAME'))
 
-# Save result as CSV
-write_csv(df, csv_file)
+# View results
+df[1:5, 15:20]
 ```
 
 After saving the results to a CSV file, we are done.
+
+```{r save_results}
+# Save result as CSV
+write_csv(df, csv_file)
+```
