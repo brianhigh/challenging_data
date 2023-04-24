@@ -277,7 +277,7 @@ We won't worry about proving column names for the non-drug columns right now.
 # Clean up data
 df <- df %>% 
   mutate(across(ends_with('_VAL'), ~ str_replace_all(.x, '\\s+', ' '))) %>%
-  rename_with(~ str_remove(., '._VAL')) %>%
+  rename_with(~ str_remove(., '_VAL')) %>%
   select(-ends_with('_NAME'))
 
 # View results
