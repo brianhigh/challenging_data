@@ -88,9 +88,10 @@ the one selected for us must mean "with BOM" implicitly.
 
 So, we expect a normal "text" file, because of the file suffix, but with NUL 
 characters and an atypical file encoding. Normally, we would expect UTF-8, ANSI 
-(Windows-1252 or CP-1252), ASCII, or Latin-1 (ISO/IEC 8859-1), but it's strange 
-the file does not show more than the first character of the file ("1"). Maybe 
-the encoding type or NUL characters are not supported by R's text editor.  
+(Windows-1252 or CP-1252), ASCII, or Latin-1 (ISO/IEC 8859-1). It's strange 
+that, when opened in R's text editor, the file does not show more than the 
+first character of the file ("1"). Maybe the encoding type or NUL characters 
+are not supported by R's text editor.  
 
 We could convert the file format in either Notepad++ or BBedit to UTF-8 and make 
 our lives a little easier, but we will try to do all processing in R for 
