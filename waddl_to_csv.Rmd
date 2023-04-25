@@ -16,7 +16,7 @@ knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 100), tidy = TRUE)
 ## Read WADDL file and convert to CSV
 
 We will use an example "text" data file, a modified subset of a file we were told 
-came from the [Washington Animal Disease Diagnostic Laboratory](https://waddl.vetmed.wsu.edu/ (WADDL). We were asked to read the file into R, but we were not told anything 
+came from the [Washington Animal Disease Diagnostic Laboratory](https://waddl.vetmed.wsu.edu/) (WADDL). We were asked to read the file into R, but we were not told anything 
 about the file format or structure, except that it was a "text" file.
 
 This particular file format is challenging because the functions you would normally 
