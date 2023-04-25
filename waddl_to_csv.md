@@ -57,24 +57,60 @@ txt_file <- file.path("data", "waddl_data_example.txt")
 csv_file <- file.path("data", "waddl_data_example.csv")
 ```
 
-## Embedded Nulls
+## Data file inspection
 
-We expect a normal "text" file, because of the file suffix: `.txt`. If we knew it 
-was a CSV file, we would use `read.csv()`, but from the `.txt` suffix we do not 
-know the delimiter. It could be a comma, tab, space, or just about anything. So, 
-we will start by trying `read.table()`. 
+The data file we were given had "Sensititre" in the name and ended with a ".TXT" 
+suffix. An internet search revealed that [Sensititre](https://www.thermofisher.com/order/catalog/product/V3000-VZ) is a laboratory instrument 
+used for antimicrobial sensitivity testing. We could not find a description of the 
+file format and we were not provided with a code book to explain the variables. 
+There is commercial software available for purchase that was designed to
+work with this instrument called the Thermo Scientific™ Sensititre™ SWIN™ Software 
+System. We do not have this software, nor could we find a manual for it available 
+online.
 
-But when we read it in we get some unexpected messages.
+The file can be opened in Notepad and [Notepad++](https://notepad-plus-plus.org/), 
+but will not show much when opened in R's text editor. In Notepad++ we turned on 
+View -> Show Symbol -> Show All Characters. We see it has no column headers, 
+is tab delimited, contains NUL characters, and the columns all line up like a 
+fixed-width format, and the lines end with CRLF, or "carriage-return line-feed", the 
+standard text file line ending characters used on Windows systems). In Notepad++, 
+from the Encoding menu, we see "UTF-16 LE BOM". 
+
+Opening the file on a Mac with [BBEdit](https://www.barebones.com/products/bbedit/), 
+we selected View -> Text Display -> Show Invisibles. This showed the tabs as grey 
+triangles and there was an upside-down red question mark where there were no data 
+values. Maybe that's for the NULs. At the bottom in the status bar, it says 
+"Text File", "Unicode (UTF-16 Little-Endian)" and "Windows (CRLF)". So, that's 
+the same file encoding as Notepad++ reported, but without the "BOM". If you 
+select the file encoding in the status bar of BBEdit, you see that there is 
+another choice for "Unicode (UTF-16 Little-Endian, no BOM)", so that means 
+the one selected for us must mean "with BOM" implicitly.
+
+So, we expect a normal "text" file, because of the file suffix, but with NUL 
+characters and an atypical file encoding. Normally, we would expect UTF-8, ASCII, 
+ANSI or but it's strange the file does not show more than the first character of 
+the file ("1"). Maybe the encoding type or NUL characters are not supported by 
+R's text editor.  
+
+We could convert the file format in either Notepad++ or BBedit to UTF-8 and make 
+our lives a little easier, but we will try to do all processing in R for 
+better automation and reproducibility.
+
+## Embedded nulls
+
+We will start with `read.table()`, specifying a tab delimiter and no header, 
+and reading in hust the first line. When we read it in we get some unexpected 
+messages.
 
 
 ```r
 # Try reading with read.table, just the first row
-try(read.table(txt_file, nrows = 1))
+try(read.table(txt_file, sep = "\t", header = FALSE, nrows = 1))
 ```
 
 ```
-## Warning in read.table(txt_file, nrows = 1): line 1 appears to contain embedded
-## nulls
+## Warning in read.table(txt_file, sep = "\t", header = FALSE, nrows = 1): line 1
+## appears to contain embedded nulls
 ```
 
 ```
@@ -82,18 +118,22 @@ try(read.table(txt_file, nrows = 1))
 ##   invalid multibyte string at '<ff><fe>1'
 ```
 
-The warning "appears to contain embedded nulls" will go away if we use `skipNul = TRUE`.
+We see a warning "appears to contain embedded nulls". We saw NUL characters in 
+Notepad++, and red upside-down question marks in BBEdit for empty fields, so 
+perhaps that's what this is about. The warning will go away if we use `skipNul = TRUE`.
 
 
 ```r
 # Try reading with read.table, just the first row
-try(read.table(txt_file, nrows = 1, skipNul = TRUE))
+try(read.table(txt_file, sep = "\t", header = FALSE, nrows = 1, skipNul = TRUE))
 ```
 
 ```
 ## Error in type.convert.default(data[[i]], as.is = as.is[i], dec = dec,  : 
 ##   invalid multibyte string at '<ff><fe>1'
 ```
+
+We still see the "invalid multibyte string" error.
 
 ## Invalid multibyte strings
 
@@ -116,9 +156,12 @@ readr::guess_encoding(txt_file, n_max = 1)
 ## 4 UTF-32LE         0.25
 ```
 
-And the guesses are listed with the most likely encoding at the the top of the 
-list with a probability of 1. We can verify that by checking the first four bytes 
-for the "byte order mark" (BOM):
+And the guesses are listed with the most likely encoding, "UTF-16LE", at the the 
+top of the list with a probability of 1. Notepad++ showed the same encoding, 
+but added "BOM". We can verify that encoding by checking the first four bytes 
+of the file for the "byte order mark" (BOM). For UTF-16, we would expect a 
+two-byte BOM, so checked the next two bytes after that will also let us see the 
+first two-byte character of data.
 
 
 ```r
@@ -131,8 +174,8 @@ readBin(txt_file, what = "raw", n = 4)
 ```
 
 We see a two-byte BOM of `ff fe`, followed by the first two-byte character of 
-our data, "1" (the row number?), and "1" is `31 00` in UTF-16LE encoding. This 
-verifies UTF-16LE encoding.
+our data, "1", and "1" is `31 00` in UTF-16LE encoding. This verifies UTF-16LE 
+BOM encoding.
 
 - See: https://www.unicode.org/faq/utf_bom.html#bom4
 - And: https://en.wikipedia.org/wiki/Byte_order_mark#UTF-16
@@ -148,89 +191,124 @@ errors. The BOM was removed automatically.
 
 
 ```r
-read.table(txt_file, nrows = 1, fileEncoding = "UTF-16LE", skipNul = TRUE)
+read.table(txt_file, sep = "\t", header = FALSE, nrows = 1, skipNul = TRUE, fileEncoding = "UTF-16LE")
 ```
 
 ```
-##   V1    V2        V3          V4 V5    V6  V7  V8 V9 V10 V11 V12 V13        V14
-## 1  1 99050 2099-0707 2099-0707.2  2 S.AUR ANY ANY -1   0   0   +  24 2099-05-25
-##        V15
-## 1 13:27:05
+##   V1    V2        V3 V4 V5 V6          V7 V8 V9   V10 V11 V12 V13 V14 V15 V16
+## 1  1 99050 2099-0707 NA NA NA 2099-0707.2  2 NA S.AUR ANY ANY  NA  -1  NA  NA
+##   V17 V18 V19 V20 V21 V22 V23 V24 V25 V26 V27 V28 V29 V30 V31 V32 V33 V34 V35
+## 1  NA  NA   0   0  NA  NA   +  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA
+##   V36 V37 V38 V39 V40                 V41 V42 V43 V44 V45 V46 V47 V48 V49 V50
+## 1  NA  NA  NA  NA  24 2099-05-25 13:27:05  NA  NA  NA  NA  NA  NA  NA  NA  NA
+##   V51 V52 V53 V54 V55 V56 V57 V58 V59 V60 V61 V62 V63 V64 V65 V66 V67 V68 V69
+## 1  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA
+##   V70 V71 V72 V73 V74 V75 V76 V77 V78 V79 V80 V81 V82 V83 V84 V85 V86 V87 V88
+## 1  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA
+##   V89 V90 V91 V92 V93 V94 V95 V96 V97 V98 V99 V100 V101 V102 V103 V104 V105
+## 1  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA   NA   NA   NA   NA   NA   NA
+##   V106 V107 V108 V109 V110 V111 V112 V113 V114 V115 V116 V117 V118 V119 V120
+## 1   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA
+##   V121 V122 V123 V124 V125 V126 V127 V128 V129 V130 V131 V132 V133 V134 V135
+## 1   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA
+##   V136 V137 V138 V139 V140 V141 V142 V143 V144 V145 V146 V147 V148 V149 V150
+## 1   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA
+##   V151 V152 V153 V154 V155 V156 V157 V158 V159 V160 V161 V162 V163 V164 V165
+## 1   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA
+##   V166 V167 V168 V169 V170 V171 V172 V173 V174 V175 V176 V177 V178 V179 V180
+## 1   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA
+##   V181 V182 V183 V184 V185 V186 V187 V188 V189 V190 V191 V192 V193 V194 V195
+## 1   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA
+##   V196 V197 V198 V199 V200 V201 V202 V203 V204 V205 V206 V207 V208 V209 V210
+## 1   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA
+##   V211 V212 V213 V214 V215 V216 V217 V218 V219 V220 V221 V222 V223 V224 V225
+## 1   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA
+##   V226 V227 V228 V229 V230 V231 V232 V233 V234 V235 V236 V237 V238 V239 V240
+## 1   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA
+##   V241 V242 V243 V244 V245 V246 V247 V248 V249 V250 V251 V252 V253 V254 V255
+## 1   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA
+##   V256 V257 V258 V259 V260 V261 V262 V263 V264 V265 V266 V267 V268 V269 V270
+## 1   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA
+##   V271 V272 V273 V274 V275 V276 V277 V278 V279 V280 V281 V282 V283 V284 V285
+## 1   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA
+##   V286 V287 V288 V289 V290 V291 V292 V293 V294 V295 V296 V297 V298 V299 V300
+## 1   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA
+##   V301 V302 V303 V304 V305 V306 V307 V308 V309 V310 V311 V312 V313 V314 V315
+## 1   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA
+##   V316 V317 V318 V319 V320 V321 V322 V323 V324 V325 V326 V327 V328 V329 V330
+## 1   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA
+##   V331 V332 V333 V334 V335 V336 V337 V338 V339 V340 V341
+## 1   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA
 ```
 
 ## Read more rows
 
-We get an error when we try to read more rows.
+We get no errors when we try to read all of the rows.
 
 
 ```r
-# Let's try reading more rows
-try(read.table(txt_file, nrows = 5, fileEncoding = "UTF-16LE", skipNul = TRUE))
+# Read file
+df <- read.table(txt_file, sep = "\t", header = FALSE, skipNul = TRUE, fileEncoding = "UTF-16LE")
+
+# View data
+df[1:5, 1:20]
 ```
 
 ```
-## Error in scan(file = file, what = what, sep = sep, quote = quote, dec = dec,  : 
-##   line 1 did not have 111 elements
+##   V1    V2        V3 V4 V5 V6          V7 V8 V9   V10 V11 V12 V13 V14 V15 V16
+## 1  1 99050 2099-0707 NA NA NA 2099-0707.2  2 NA S.AUR ANY ANY  NA  -1  NA  NA
+## 2  2 99050 2099-0707 NA NA NA 2099-0707.2  2 NA S.AUR ANY ANY  NA  -1  NA  NA
+## 3  3 99050 2099-0707 NA NA NA 2099-0707.2  2 NA S.AUR ANY ANY  NA  -1  NA  NA
+## 4  4 99057 2099-0031 NA NA NA 2099-0031.1  1 NA E.COL ANY EQU  NA  -1  NA  NA
+## 5  5 99058 2099-0129 NA NA NA 2099-0129.1  1 NA E.COL   U CAN  NA  -1  NA  NA
+##   V17 V18 V19 V20
+## 1  NA  NA   0   0
+## 2  NA  NA   0   0
+## 3  NA  NA   0   0
+## 4  NA  NA   0   0
+## 5  NA  NA   0   0
 ```
 
-This error means that some rows are missing some values. We will look at whole 
-lines to see what's going on. Let's start with the first five lines.
+But when we view the data, we see there are blank fields. We would prefer to 
+see NAs here. Let's see what's really in those empty fields.
 
 
 ```r
-# Let's read in whole lines to see what they really look like
-readLines(txt_file, encoding = "UTF-16LE", n = 5, skipNul = TRUE)
+df$V42[1:5]
 ```
 
 ```
-## [1] "\xff\xfe1\t99050\t2099-0707\t\t\t\t2099-0707.2\t2\t\tS.AUR\tANY\tANY\t\t-1\t\t\t\t\t0\t0\t\t\t+\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t24\t2099-05-25 13:27:05\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
-## [2] ""                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
-## [3] "2\t99050\t2099-0707\t\t\t\t2099-0707.2\t2\t\tS.AUR\tANY\tANY\t\t-1\t\t\t\t\t0\t0\t\t\t+\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t24\t2099-06-01 09:14:28\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
-## [4] ""                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
-## [5] "3\t99050\t2099-0707\t\t\t\t2099-0707.2\t2\t\tS.AUR\tANY\tANY\t\t-1\t\t\t\t\t0\t0\t\t\t+\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t24\t2099-06-01 13:42:48\tAMIKAC\t<=      16\tNOINTP\tAMOCLA\t =     0.5\tINTER\tAMPICI\t =       4\tRESIST\t\t\t\tCEFAZO\t<=       2\tSUSC\tCEFOVE\t =       4\tRESIST\tCEFPOD\t =       4\tINTER\t\t\t\t\t\t\t\t\t\tCEPHAL\t<=       2\tSUSC\tCHLORA\t<=       8\tSUSC\t\t\t\t\t\t\tCLINDA\t<=     0.5\tSUSC\t\t\t\tDOXYCY\t<=    0.12\tSUSC\tENROFL\t<=    0.25\tNOINTP\tERYTH\t<=    0.25\tSUSC\t\t\t\tGENTAM\t<=       4\tSUSC\tIMIPEN\t<=       1\tSUSC\tMARBOF\t<=       1\tNOINTP\tMINOCY\t<=     0.5\tSUSC\t\t\t\tNITRO\t<=      16\tSUSC\t\t\t\tOXACIL\t =       2\tSUSC\t\t\t\tPENICI\t >       8\tRESIST\t\t\t\tPRADOF\t<=    0.25\tNOINTP\tRIFAMP\t<=       1\tSUSC\t\t\t\t\t\t\tTETRA\t<=    0.25\tSUSC\t\t\t\t\t\t\t\t\t\t\t\t\tTRISUL\t<=       2\tSUSC\t\t\t\t\t\t\tVANCOM\t<=       1\tSUSC\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t"
+## [1] ""       ""       "AMIKAC" "AMIKAC" "AMIKAC"
 ```
 
-By inspection, we see the delimiter is tab (`\t`), there are blank lines, and 
-no headers, with no specific value for "missingness", just the delimiter with
-no value of any kind. When read into R, this would be the empty string ("").
-
-## Set NA strings
-
-Let's use what we know now about the file structure and try again using 
-`na.strings = ""` to tell R that an empty string should be converted to `NA`.
+So, the blank fields are really the empty string (""). We will read in the 
+file again setting `na.strings = ""`.
 
 
 ```r
-df <- try(read.table(txt_file, header = FALSE, na.strings = "", fileEncoding = "UTF-16LE", skipNul = TRUE))
+# Read file
+df <- read.table(txt_file, sep = "\t", header = FALSE, skipNul = TRUE, fileEncoding = "UTF-16LE", na.strings = "")
+
+# View data
+df[1:5, 1:20]
 ```
 
 ```
-## Error in scan(file = file, what = what, sep = sep, quote = quote, dec = dec,  : 
-##   line 1 did not have 111 elements
+##   V1    V2        V3 V4 V5 V6          V7 V8 V9   V10 V11 V12 V13 V14 V15 V16
+## 1  1 99050 2099-0707 NA NA NA 2099-0707.2  2 NA S.AUR ANY ANY  NA  -1  NA  NA
+## 2  2 99050 2099-0707 NA NA NA 2099-0707.2  2 NA S.AUR ANY ANY  NA  -1  NA  NA
+## 3  3 99050 2099-0707 NA NA NA 2099-0707.2  2 NA S.AUR ANY ANY  NA  -1  NA  NA
+## 4  4 99057 2099-0031 NA NA NA 2099-0031.1  1 NA E.COL ANY EQU  NA  -1  NA  NA
+## 5  5 99058 2099-0129 NA NA NA 2099-0129.1  1 NA E.COL   U CAN  NA  -1  NA  NA
+##   V17 V18 V19 V20
+## 1  NA  NA   0   0
+## 2  NA  NA   0   0
+## 3  NA  NA   0   0
+## 4  NA  NA   0   0
+## 5  NA  NA   0   0
 ```
 
-We will get the same error as before. That's because `read.table()` needs to know 
-the delimiter with `sep = "\t"`.
-
-## Setting the delimiter
-
-We don't have to set `blank.lines.skip = TRUE`, since that's the default, but we 
-do need to set `sep = "\t"`.
-
-
-```r
-# Read file as tab-delimited UTF-16LE, skipping nulls, with '' set to NA
-df <- read.table(txt_file, header = FALSE, na.strings = "", sep = "\t", fileEncoding = "UTF-16LE", skipNul = TRUE)
-```
-
-If we use `read.delim()` instead of `read.table()`, we don't have to specify either 
-`sep = "\t"` or `blank.lines.skip = TRUE` since the defaults will cover those.
-
-
-```r
-# Read file as whitepace-delimited UTF-16LE, skipping nulls, with '' set to NA
-df <- read.delim(txt_file, header = FALSE, na.strings = "", fileEncoding = "UTF-16LE", skipNul = TRUE)
-```
+So, now the blank fields have NA instead.
 
 ## Using `readr::read_delim`
 
@@ -402,7 +480,7 @@ drugs <- sapply(col_vals, names)
 drug_nums <- as.numeric(gsub("^V", "", drug_cols))
 
 # Rename drug columns in sets of 3 columns for each drug: name, value, and RIS
-drugs_df <- data.frame(drug = drugs, drug_num = drug_nums) %>%
+drugs_df <- tibble(drug = drugs, drug_num = drug_nums) %>%
     mutate(col1_old = paste0("V", drug_nums), col2_old = paste0("V", drug_nums + 1), col3_old = paste0("V",
         drug_nums + 2)) %>%
     mutate(col1_new = paste0(drug, "_NAME"), col2_new = paste0(drug, "_VAL"), col3_new = paste0(drug,

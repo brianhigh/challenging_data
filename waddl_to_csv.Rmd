@@ -58,26 +58,66 @@ txt_file <- file.path("data", "waddl_data_example.txt")
 csv_file <- file.path("data", "waddl_data_example.csv")
 ```
 
-## Embedded Nulls
+## Data file inspection
 
-We expect a normal "text" file, because of the file suffix: `.txt`. If we knew it 
-was a CSV file, we would use `read.csv()`, but from the `.txt` suffix we do not 
-know the delimiter. It could be a comma, tab, space, or just about anything. So, 
-we will start by trying `read.table()`. 
+The data file we were given had "Sensititre" in the name and ended with a ".TXT" 
+suffix. An internet search revealed that [Sensititre](https://www.thermofisher.com/order/catalog/product/V3000-VZ) is a laboratory instrument 
+used for antimicrobial sensitivity testing. We could not find a description of the 
+file format and we were not provided with a code book to explain the variables. 
+There is commercial software available for purchase that was designed to
+work with this instrument called the Thermo Scientific™ Sensititre™ SWIN™ Software 
+System. We do not have this software, nor could we find a manual for it available 
+online.
 
-But when we read it in we get some unexpected messages.
+The file can be opened in Notepad and [Notepad++](https://notepad-plus-plus.org/), 
+but will not show much when opened in R's text editor. In Notepad++ we turned on 
+View -> Show Symbol -> Show All Characters. We see it has no column headers, 
+is tab delimited, contains NUL characters, and the columns all line up like a 
+fixed-width format, and the lines end with CRLF, or "carriage-return line-feed", the 
+standard text file line ending characters used on Windows systems). In Notepad++, 
+from the Encoding menu, we see "UTF-16 LE BOM". 
+
+Opening the file on a Mac with [BBEdit](https://www.barebones.com/products/bbedit/), 
+we selected View -> Text Display -> Show Invisibles. This showed the tabs as grey 
+triangles and there was an upside-down red question mark where there were no data 
+values. Maybe that's for the NULs. At the bottom in the status bar, it says 
+"Text File", "Unicode (UTF-16 Little-Endian)" and "Windows (CRLF)". So, that's 
+the same file encoding as Notepad++ reported, but without the "BOM". If you 
+select the file encoding in the status bar of BBEdit, you see that there is 
+another choice for "Unicode (UTF-16 Little-Endian, no BOM)", so that means 
+the one selected for us must mean "with BOM" implicitly.
+
+So, we expect a normal "text" file, because of the file suffix, but with NUL 
+characters and an atypical file encoding. Normally, we would expect UTF-8, ASCII, 
+ANSI or but it's strange the file does not show more than the first character of 
+the file ("1"). Maybe the encoding type or NUL characters are not supported by 
+R's text editor.  
+
+We could convert the file format in either Notepad++ or BBedit to UTF-8 and make 
+our lives a little easier, but we will try to do all processing in R for 
+better automation and reproducibility.
+
+## Embedded nulls
+
+We will start with `read.table()`, specifying a tab delimiter and no header, 
+and reading in hust the first line. When we read it in we get some unexpected 
+messages.
 
 ```{r embedded_nuls_and_multibyte_strings}
 # Try reading with read.table, just the first row
-try(read.table(txt_file, nrows = 1))
+try(read.table(txt_file, sep = "\t", header = FALSE, nrows = 1))
 ```
 
-The warning "appears to contain embedded nulls" will go away if we use `skipNul = TRUE`.
+We see a warning "appears to contain embedded nulls". We saw NUL characters in 
+Notepad++, and red upside-down question marks in BBEdit for empty fields, so 
+perhaps that's what this is about. The warning will go away if we use `skipNul = TRUE`.
 
 ```{r skipnul}
 # Try reading with read.table, just the first row
-try(read.table(txt_file, nrows = 1, skipNul = TRUE))
+try(read.table(txt_file, sep = "\t", header = FALSE, nrows = 1, skipNul = TRUE))
 ```
+
+We still see the "invalid multibyte string" error.
 
 ## Invalid multibyte strings
 
@@ -89,9 +129,12 @@ expected (usually UTF-8 or ASCII), so we check to see what it might be instead.
 readr::guess_encoding(txt_file, n_max = 1)
 ```
 
-And the guesses are listed with the most likely encoding at the the top of the 
-list with a probability of 1. We can verify that by checking the first four bytes 
-for the "byte order mark" (BOM):
+And the guesses are listed with the most likely encoding, "UTF-16LE", at the the 
+top of the list with a probability of 1. Notepad++ showed the same encoding, 
+but added "BOM". We can verify that encoding by checking the first four bytes 
+of the file for the "byte order mark" (BOM). For UTF-16, we would expect a 
+two-byte BOM, so checked the next two bytes after that will also let us see the 
+first two-byte character of data.
 
 ```{r BOM}
 # Look for a byte order mark (BOM) in the first four bytes to verify encoding
@@ -99,8 +142,8 @@ readBin(txt_file, what = "raw", n = 4)
 ```
 
 We see a two-byte BOM of `ff fe`, followed by the first two-byte character of 
-our data, "1" (the row number?), and "1" is `31 00` in UTF-16LE encoding. This 
-verifies UTF-16LE encoding.
+our data, "1", and "1" is `31 00` in UTF-16LE encoding. This verifies UTF-16LE 
+BOM encoding.
 
 - See: https://www.unicode.org/faq/utf_bom.html#bom4
 - And: https://en.wikipedia.org/wiki/Byte_order_mark#UTF-16
@@ -115,62 +158,43 @@ When we set `fileEncoding = "UTF-16LE"`, reading the first line, there are no
 errors. The BOM was removed automatically.
 
 ```{r one_row}
-read.table(txt_file, nrows = 1, fileEncoding = "UTF-16LE", skipNul = TRUE) 
+read.table(txt_file, sep = "\t", header = FALSE, nrows = 1, skipNul = TRUE, 
+           fileEncoding = "UTF-16LE") 
 ```
 
 ## Read more rows
 
-We get an error when we try to read more rows.
+We get no errors when we try to read all of the rows.
 
-```{r delim}
-# Let's try reading more rows
-try(read.table(txt_file, nrows = 5, fileEncoding = "UTF-16LE", skipNul = TRUE))
+```{r read_whole_file}
+# Read file
+df <- read.table(txt_file, sep = "\t", header = FALSE, skipNul = TRUE, 
+                 fileEncoding = "UTF-16LE")
+
+# View data
+df[1:5, 1:20]
 ```
 
-This error means that some rows are missing some values. We will look at whole 
-lines to see what's going on. Let's start with the first five lines.
+But when we view the data, we see there are blank fields. We would prefer to 
+see NAs here. Let's see what's really in those empty fields.
 
-```{r read_whole_lines}
-# Let's read in whole lines to see what they really look like
-readLines(txt_file, encoding = "UTF-16LE", n = 5, skipNul = TRUE)
+```{r }
+df$V42[1:5]
 ```
 
-By inspection, we see the delimiter is tab (`\t`), there are blank lines, and 
-no headers, with no specific value for "missingness", just the delimiter with
-no value of any kind. When read into R, this would be the empty string ("").
+So, the blank fields are really the empty string (""). We will read in the 
+file again setting `na.strings = ""`.
 
-## Set NA strings
+```{r read_whole_file_again}
+# Read file
+df <- read.table(txt_file, sep = "\t", header = FALSE, skipNul = TRUE, 
+                 fileEncoding = "UTF-16LE", na.strings = "")
 
-Let's use what we know now about the file structure and try again using 
-`na.strings = ""` to tell R that an empty string should be converted to `NA`.
-
-```{r read_data_table}
-df <- try(read.table(txt_file, header = FALSE, na.strings = "", 
-                     fileEncoding = "UTF-16LE", skipNul = TRUE))
+# View data
+df[1:5, 1:20]
 ```
 
-We will get the same error as before. That's because `read.table()` needs to know 
-the delimiter with `sep = "\t"`.
-
-## Setting the delimiter
-
-We don't have to set `blank.lines.skip = TRUE`, since that's the default, but we 
-do need to set `sep = "\t"`.
-
-```{r read_data_table_sep}
-# Read file as tab-delimited UTF-16LE, skipping nulls, with "" set to NA
-df <- read.table(txt_file, header = FALSE, na.strings = "", sep = "\t", 
-                 fileEncoding = "UTF-16LE", skipNul = TRUE)
-```
-
-If we use `read.delim()` instead of `read.table()`, we don't have to specify either 
-`sep = "\t"` or `blank.lines.skip = TRUE` since the defaults will cover those.
-
-```{r read_data_delim}
-# Read file as whitepace-delimited UTF-16LE, skipping nulls, with "" set to NA
-df <- read.delim(txt_file, header = FALSE, na.strings = "", 
-                 fileEncoding = "UTF-16LE", skipNul = TRUE)
-```
+So, now the blank fields have NA instead.
 
 ## Using `readr::read_delim`
 
@@ -269,7 +293,7 @@ drugs <- sapply(col_vals, names)
 drug_nums <- as.numeric(gsub('^V', '', drug_cols))
 
 # Rename drug columns in sets of 3 columns for each drug: name, value, and RIS
-drugs_df <- data.frame(drug = drugs, drug_num = drug_nums) %>%
+drugs_df <- tibble(drug = drugs, drug_num = drug_nums) %>%
   mutate(col1_old = paste0('V', drug_nums),
          col2_old = paste0('V', drug_nums + 1),
          col3_old = paste0('V', drug_nums + 2)) %>%
