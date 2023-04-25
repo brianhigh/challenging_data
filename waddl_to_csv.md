@@ -22,7 +22,7 @@ Further, the data are not arranged in familiar "columns are variables" structure
 
 We will explore how to address the issues that come up when reading this file: 
 
-- Unexpected "embedded nulls" error
+- Unexpected "embedded nulls" warning
 - Unexpected "invalid multibyte string" error
 - Unexpected file encoding type
 - Unexpected delimiter (tab)
@@ -32,6 +32,12 @@ We will explore how to address the issues that come up when reading this file:
 - Rows missing any useful data (to remove)
 - Unusual data structure (not "columns are variables")
 
+For the curious, we also provide more details in three appendices:
+
+- Appendix I: What's an "embedded null"?
+- Appendix II: What's UTF-16LE?
+- Appendix III: Good nulls and bad nulls
+
 ## Setup
 
 First, we will load our R packages, set options, and set file paths.
@@ -40,8 +46,7 @@ First, we will load our R packages, set options, and set file paths.
 ```r
 # Attach packages, installing as needed
 if (!requireNamespace("pacman", quietly = TRUE)) install.packages("pacman")
-pacman::p_load(formatR, knitr, readr, dplyr, tidyr, stringr,
-    purrr)
+pacman::p_load(formatR, knitr, readr, dplyr, tidyr, stringr, purrr)
 
 # Set options
 options(readr.show_col_types = FALSE, readr.show_progress = FALSE)
@@ -58,7 +63,7 @@ was a CSV file, we would use `read.csv()`, but from the `.txt` suffix we do not
 know the delimiter. It could be a comma, tab, space, or just about anything. So, 
 we will start by trying `read.table()`. 
 
-But when we read it in we get some unexpected error messages.
+But when we read it in we get some unexpected messages.
 
 
 ```r
@@ -76,7 +81,7 @@ try(read.table(txt_file, nrows = 1))
 ##   invalid multibyte string at '<ff><fe>1'
 ```
 
-The error about "embedded nulls" can be easily dealt with using `skipNul = TRUE`.
+The warning "appears to contain embedded nulls" will go away if we use `skipNul = TRUE`.
 
 
 ```r
@@ -89,7 +94,7 @@ try(read.table(txt_file, nrows = 1, skipNul = TRUE))
 ##   invalid multibyte string at '<ff><fe>1'
 ```
 
-## File encoding
+## Invalid multibyte strings
 
 The "invalid multibyte string" error is a clue that the file is not encoded as 
 expected (usually UTF-8 or ASCII), so we check to see what it might be instead.
@@ -112,12 +117,11 @@ readr::guess_encoding(txt_file, n_max = 1)
 
 And the guesses are listed with the most likely encoding at the the top of the 
 list with a probability of 1. We can verify that by checking the first two bytes 
-for the "byte order mark" (BOM),
+for the "byte order mark" (BOM):
 
 
 ```r
-# Look for a byte order mark (BOM) in the first two bytes
-# to verify encoding
+# Look for a byte order mark (BOM) in the first two bytes to verify encoding
 readBin(txt_file, what = "raw", n = 2)
 ```
 
@@ -129,6 +133,12 @@ We see a BOM of `ff fe`, verifying the UTF-16LE encoding.
 
 - See: https://www.unicode.org/faq/utf_bom.html#bom4
 - And: https://en.wikipedia.org/wiki/Byte_order_mark#UTF-16
+
+The BOM is the source of the "invalid multibyte string" error because `read.table()` 
+does not know this is a UTF-16LE file having the associated BOM. 
+
+The `\xff` and `\xfe` are the hexadecimal values for these two special "bytes", 
+where a byte is 16 "bits". 
 
 When we set `fileEncoding = "UTF-16LE"`, reading the first line, there are no 
 errors. The BOM was removed automatically.
@@ -152,8 +162,7 @@ We get an error when we try to read more rows.
 
 ```r
 # Let's try reading more rows
-try(read.table(txt_file, nrows = 5, fileEncoding = "UTF-16LE",
-    skipNul = TRUE))
+try(read.table(txt_file, nrows = 5, fileEncoding = "UTF-16LE", skipNul = TRUE))
 ```
 
 ```
@@ -166,8 +175,7 @@ lines to see what's going on. Let's start with the first five lines.
 
 
 ```r
-# Let's read in whole lines to see what they really look
-# like
+# Let's read in whole lines to see what they really look like
 readLines(txt_file, encoding = "UTF-16LE", n = 5, skipNul = TRUE)
 ```
 
@@ -190,8 +198,7 @@ Let's use what we know now about the file structure and try again using
 
 
 ```r
-df <- try(read.table(txt_file, header = FALSE, na.strings = "",
-    fileEncoding = "UTF-16LE", skipNul = TRUE))
+df <- try(read.table(txt_file, header = FALSE, na.strings = "", fileEncoding = "UTF-16LE", skipNul = TRUE))
 ```
 
 ```
@@ -209,10 +216,8 @@ do need to set `sep = "\t"`.
 
 
 ```r
-# Read file as tab-delimited UTF-16LE, skipping nulls, with
-# '' set to NA
-df <- read.table(txt_file, header = FALSE, na.strings = "", sep = "\t",
-    fileEncoding = "UTF-16LE", skipNul = TRUE)
+# Read file as tab-delimited UTF-16LE, skipping nulls, with '' set to NA
+df <- read.table(txt_file, header = FALSE, na.strings = "", sep = "\t", fileEncoding = "UTF-16LE", skipNul = TRUE)
 ```
 
 If we use `read.delim()` instead of `read.table()`, we don't have to specify either 
@@ -220,10 +225,8 @@ If we use `read.delim()` instead of `read.table()`, we don't have to specify eit
 
 
 ```r
-# Read file as whitepace-delimited UTF-16LE, skipping
-# nulls, with '' set to NA
-df <- read.delim(txt_file, header = FALSE, na.strings = "", fileEncoding = "UTF-16LE",
-    skipNul = TRUE)
+# Read file as whitepace-delimited UTF-16LE, skipping nulls, with '' set to NA
+df <- read.delim(txt_file, header = FALSE, na.strings = "", fileEncoding = "UTF-16LE", skipNul = TRUE)
 ```
 
 ## Using `readr::read_delim`
@@ -235,14 +238,12 @@ first.
 
 
 ```r
-# Do the same with readr::read_delim(), but after using
-# readLines/writeLines since read_delim can't handle the
-# embedded nulls
+# Do the same with readr::read_delim(), but after using readLines/writeLines since read_delim can't
+# handle the embedded nulls
 temp <- tempfile()
 readLines(txt_file, encoding = "UTF-16LE", skipNul = TRUE) %>%
     writeLines(temp)
-df <- read_delim(temp, delim = "\t", col_names = FALSE, na = "",
-    name_repair = make.names)
+df <- read_delim(temp, delim = "\t", col_names = FALSE, na = "", name_repair = make.names)
 res <- file.remove(temp)
 ```
 
@@ -311,8 +312,7 @@ rows, as we don't need them.
 
 
 ```r
-# Find the numerical index of column V42 to use for
-# subsetting
+# Find the numerical index of column V42 to use for subsetting
 drug_start <- grep("V42", names(df))
 drug_start
 ```
@@ -322,8 +322,7 @@ drug_start
 ```
 
 ```r
-# Remove rows containing no drug data, e.g., where columns
-# V42 onward are all NA
+# Remove rows containing no drug data, e.g., where columns V42 onward are all NA
 df <- df %>%
     filter(!if_all(all_of(drug_start:ncol(df)), ~is.na(.)))
 
@@ -369,15 +368,12 @@ of the three columns for each set. So, we will extract these first.
 
 
 ```r
-# Identify columns containing only a single abbreviated
-# drug name (or NA)
-drug_cols <- names(df)[drug_start:ncol(df)][drug_start:ncol(df)%%3 ==
-    0]
+# Identify columns containing only a single abbreviated drug name (or NA)
+drug_cols <- names(df)[drug_start:ncol(df)][drug_start:ncol(df)%%3 == 0]
 col_vals <- map(drug_cols, ~table(df[, .x])) %>%
     setNames(drug_cols)
 
-# Confirm all of these variables only contain 1 value
-# matching name pattern
+# Confirm all of these variables only contain 1 value matching name pattern
 table(unlist(map(col_vals, length)))
 ```
 
@@ -402,13 +398,12 @@ table(unlist(map(col_vals, ~grepl("^[A-Z]+$", names(.x)[1]))))
 drugs <- sapply(col_vals, names)
 drug_nums <- as.numeric(gsub("^V", "", drug_cols))
 
-# Rename drug columns in sets of 3 columns for each drug:
-# name, value, and RIS
+# Rename drug columns in sets of 3 columns for each drug: name, value, and RIS
 drugs_df <- data.frame(drug = drugs, drug_num = drug_nums) %>%
-    mutate(col1_old = paste0("V", drug_nums), col2_old = paste0("V",
-        drug_nums + 1), col3_old = paste0("V", drug_nums + 2)) %>%
-    mutate(col1_new = paste0(drug, "_NAME"), col2_new = paste0(drug,
-        "_VAL"), col3_new = paste0(drug, "_RIS"))
+    mutate(col1_old = paste0("V", drug_nums), col2_old = paste0("V", drug_nums + 1), col3_old = paste0("V",
+        drug_nums + 2)) %>%
+    mutate(col1_new = paste0(drug, "_NAME"), col2_new = paste0(drug, "_VAL"), col3_new = paste0(drug,
+        "_RIS"))
 lookup <- with(drugs_df, c(col1_old, col2_old, col3_old) %>%
     setNames(c(col1_new, col2_new, col3_new)))
 df <- rename(df, any_of(lookup))
@@ -424,8 +419,7 @@ We won't worry about proving column names for the non-drug columns right now.
 ```r
 # Clean up data
 df <- df %>%
-    mutate(across(ends_with("_VAL"), ~str_replace_all(.x, "\\s+",
-        " "))) %>%
+    mutate(across(ends_with("_VAL"), ~str_replace_all(.x, "\\s+", " "))) %>%
     rename_with(~str_remove(., "_VAL")) %>%
     select(-ends_with("_NAME"))
 
@@ -449,3 +443,125 @@ After saving the results to a CSV file, we are done.
 # Save result as CSV
 write_csv(df, csv_file)
 ```
+
+## Appendix I: What's an "embedded null"?
+
+A "embedded null" is a non-printing character (NUL) that is sometimes used to 
+terminate a character string. You can see them using `readBin()`. This will 
+show the hexadecimal equivalents of the characters. The nulls are the 00 values.
+
+
+```r
+x <- readBin(txt_file, what = "raw", n = 16)
+x
+```
+
+```
+##  [1] ff fe 31 00 09 00 39 00 39 00 30 00 35 00 30 00
+```
+
+And we can "decode" the hexadecimal characters with `rawToChar()`, if we remove
+the nulls first:
+
+
+```r
+paste(rawToChar(x[x != 0], multiple = TRUE), collapse = " ")
+```
+
+```
+## [1] "\xff \xfe 1 \t 9 9 0 5 0"
+```
+
+## Appendix II: What's UTF-16LE?
+
+UTF-16 is a file encoding for 16-bit (2-byte) Unicode characters. We suspected we 
+had an UTF-16LE file because of the two special bytes starting the file. These 
+particular bytes, `FF FE` specify that the encoding is "little endian" (LE), giving us 
+UTF-16LE encoding. 
+
+- See: https://en.wikipedia.org/wiki/Endianness
+- And: https://www.tutorialspoint.com/big-endian-and-little-endian
+
+If we had a UTF-32LE file, it would have started with `FF FE 00 00`. If the file 
+was UTF-8, it would either not have a BOM or the BOM would be `EF BB BF`. 
+
+Because UTF-8 is represented with single bytes, there is no big or little "end". 
+Endianness is to specify byte order, so you need more than one byte per character to 
+have a byte order. So, the difference between "LE" and "BE" are just the order 
+of the two bytes in each multibyte character. We can see the difference with 
+an example that compares the bytes of LE and BE representing the character "1":
+
+
+```r
+x8 <- "1"
+Encoding(x8) <- "UTF-8"
+x16LE <- iconv(x8, "UTF-8", "UTF-16LE", toRaw = TRUE)
+x16BE <- iconv(x8, "UTF-8", "UTF-16BE", toRaw = TRUE)
+kable(t(c(x = x8, `UTF-8` = charToRaw("1"), `UTF-16LE` = x16LE, `UTF-16BE` = x16BE)), format = "simple")
+```
+
+
+
+x    UTF-8          UTF-16LE                UTF-16BE              
+---  -------------  ----------------------  ----------------------
+1    as.raw(0x31)   as.raw(c(0x31, 0x00))   as.raw(c(0x00, 0x31)) 
+
+Those `00` values look like the dreaded "embedded nulls", right? But now we see 
+those are valid after all. They are simply one of the two bytes of some UTF-16 
+characters. That's why the warning said, *appears* to contain embedded nulls. 
+
+## Appendix III: Good nulls and bad nulls
+
+It turns out we actually need to "skip" the embedded nulls (`0x00 0x00`), or we 
+will just read a few values.
+
+
+```r
+read.table(txt_file, nrows = 1, fileEncoding = "UTF-16LE") %>%
+    suppressWarnings()
+```
+
+```
+##   V1    V2        V3
+## 1  1 99050 2099-0707
+```
+
+The reason is that we actually do have real embedded nulls after the third "cell".
+
+
+```r
+readBin(txt_file, what = "raw", n = 100)
+```
+
+```
+##   [1] ff fe 31 00 09 00 39 00 39 00 30 00 35 00 30 00 09 00 32 00 30 00 39 00 39
+##  [26] 00 2d 00 30 00 37 00 30 00 37 00 09 00 00 00 09 00 00 00 09 00 00 00 09 00
+##  [51] 32 00 30 00 39 00 39 00 2d 00 30 00 37 00 30 00 37 00 2e 00 32 00 09 00 32
+##  [76] 00 09 00 00 00 09 00 53 00 2e 00 41 00 55 00 52 00 09 00 41 00 4e 00 59 00
+```
+
+You can see that between some tabs (`\t` or `09 00`) we have `00 00` values. These
+are the real embedded nulls because there are two of them together, so 16 bits of 
+zeros.
+
+I'm guessing these are the actual `NA` values of this file format. Since we don't 
+have column headings, or any code book at all, we can't be sure, but if the tab 
+is actually the delimiter, then this is how the empty "cells" are presented in 
+this file. So, maybe we can try setting the null as a NA value:
+
+
+```r
+try(read.table(txt_file, nrows = 1, fileEncoding = "UTF-16LE", na.strings = "\x00"))
+```
+
+```
+Error: nul character not allowed (line 1)
+```
+
+Unfortunately we are not allowed to enter nulls here. So, we just skip them. 
+That will leave the empty cells truly empty ("") and so we use the empty 
+string as the NA string with `na.strings = ""`. 
+
+At least now we have a better idea of what embedded nulls are, why 
+they're there (probably), and why it's (probably) okay to skip them, at least in 
+this situation.
