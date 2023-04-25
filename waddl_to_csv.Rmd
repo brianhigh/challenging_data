@@ -10,7 +10,7 @@ editor_options:
 ---
 
 ```{r knitr_setup, include=FALSE}
-knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 60), tidy = TRUE)
+knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 100), tidy = TRUE)
 ```
 
 ## Read WADDL file and convert to CSV
@@ -24,7 +24,7 @@ Further, the data are not arranged in familiar "columns are variables" structure
 
 We will explore how to address the issues that come up when reading this file: 
 
-- Unexpected "embedded nulls" error
+- Unexpected "embedded nulls" warning
 - Unexpected "invalid multibyte string" error
 - Unexpected file encoding type
 - Unexpected delimiter (tab)
@@ -33,6 +33,12 @@ We will explore how to address the issues that come up when reading this file:
 - Columns with no values (to remove)
 - Rows missing any useful data (to remove)
 - Unusual data structure (not "columns are variables")
+
+For the curious, we also provide more details in three appendices:
+
+- Appendix I: What's an "embedded null"?
+- Appendix II: What's UTF-16LE?
+- Appendix III: Good nulls and bad nulls
 
 ## Setup
 
@@ -58,21 +64,21 @@ was a CSV file, we would use `read.csv()`, but from the `.txt` suffix we do not
 know the delimiter. It could be a comma, tab, space, or just about anything. So, 
 we will start by trying `read.table()`. 
 
-But when we read it in we get some unexpected error messages.
+But when we read it in we get some unexpected messages.
 
 ```{r embedded_nuls_and_multibyte_strings}
 # Try reading with read.table, just the first row
 try(read.table(txt_file, nrows = 1))
 ```
 
-The error about "embedded nulls" can be easily dealt with using `skipNul = TRUE`.
+The warning "appears to contain embedded nulls" will go away if we use `skipNul = TRUE`.
 
 ```{r skipnul}
 # Try reading with read.table, just the first row
 try(read.table(txt_file, nrows = 1, skipNul = TRUE))
 ```
 
-## File encoding
+## Invalid multibyte strings
 
 The "invalid multibyte string" error is a clue that the file is not encoded as 
 expected (usually UTF-8 or ASCII), so we check to see what it might be instead.
@@ -84,7 +90,7 @@ readr::guess_encoding(txt_file, n_max = 1)
 
 And the guesses are listed with the most likely encoding at the the top of the 
 list with a probability of 1. We can verify that by checking the first two bytes 
-for the "byte order mark" (BOM),
+for the "byte order mark" (BOM):
 
 ```{r BOM}
 # Look for a byte order mark (BOM) in the first two bytes to verify encoding
@@ -95,6 +101,12 @@ We see a BOM of `ff fe`, verifying the UTF-16LE encoding.
 
 - See: https://www.unicode.org/faq/utf_bom.html#bom4
 - And: https://en.wikipedia.org/wiki/Byte_order_mark#UTF-16
+
+The BOM is the source of the "invalid multibyte string" error because `read.table()` 
+does not know this is a UTF-16LE file having the associated BOM. 
+
+The `\xff` and `\xfe` are the hexadecimal values for these two special "bytes", 
+where a byte is 16 "bits". 
 
 When we set `fileEncoding = "UTF-16LE"`, reading the first line, there are no 
 errors. The BOM was removed automatically.
@@ -290,3 +302,94 @@ After saving the results to a CSV file, we are done.
 # Save result as CSV
 write_csv(df, csv_file)
 ```
+
+## Appendix I: What's an "embedded null"?
+
+A "embedded null" is a non-printing character (NUL) that is sometimes used to 
+terminate a character string. You can see them using `readBin()`. This will 
+show the hexadecimal equivalents of the characters. The nulls are the 00 values.
+
+```{r see_nulls}
+x <- readBin(txt_file, what = "raw", n = 16)
+x
+```
+
+And we can "decode" the hexadecimal characters with `rawToChar()`, if we remove
+the nulls first:
+
+```{r decode}
+paste(rawToChar(x[x!=0], multiple = TRUE), collapse = " ")
+```
+
+## Appendix II: What's UTF-16LE?
+
+UTF-16 is a file encoding for 16-bit (2-byte) Unicode characters. We suspected we 
+had an UTF-16LE file because of the two special bytes starting the file. These 
+particular bytes, `FF FE` specify that the encoding is "little endian" (LE), giving us 
+UTF-16LE encoding. 
+
+- See: https://en.wikipedia.org/wiki/Endianness
+- And: https://www.tutorialspoint.com/big-endian-and-little-endian
+
+If we had a UTF-32LE file, it would have started with `FF FE 00 00`. If the file 
+was UTF-8, it would either not have a BOM or the BOM would be `EF BB BF`. 
+
+Because UTF-8 is represented with single bytes, there is no big or little "end". 
+Endianness is to specify byte order, so you need more than one byte per character to 
+have a byte order. So, the difference between "LE" and "BE" are just the order 
+of the two bytes in each multibyte character. We can see the difference with 
+an example that compares the bytes of LE and BE representing the character "1":
+
+```{r le_vs_be}
+x8 <- "1"
+Encoding(x8) <- "UTF-8"
+x16LE <- iconv(x8, "UTF-8", "UTF-16LE", toRaw = TRUE)
+x16BE <- iconv(x8, "UTF-8", "UTF-16BE", toRaw = TRUE)
+kable(
+  t(c(x = x8, 'UTF-8' = charToRaw("1"), 'UTF-16LE' = x16LE, 'UTF-16BE' = x16BE)), 
+  format = "simple")
+```
+
+Those `00` values look like the dreaded "embedded nulls", right? But now we see 
+those are valid after all. They are simply one of the two bytes of some UTF-16 
+characters. That's why the warning said, *appears* to contain embedded nulls. 
+
+## Appendix III: Good nulls and bad nulls
+
+It turns out we actually need to "skip" the embedded nulls (`0x00 0x00`), or we 
+will just read a few values.
+
+```{r one_row_with_warnings_suppressed}
+read.table(txt_file, nrows = 1, fileEncoding = "UTF-16LE") %>% suppressWarnings()
+```
+
+The reason is that we actually do have real embedded nulls after the third "cell".
+
+```{r embedded_nulls}
+readBin(txt_file, what = "raw", n = 100)
+```
+
+You can see that between some tabs (`\t` or `09 00`) we have `00 00` values. These
+are the real embedded nulls because there are two of them together, so 16 bits of 
+zeros.
+
+I'm guessing these are the actual `NA` values of this file format. Since we don't 
+have column headings, or any code book at all, we can't be sure, but if the tab 
+is actually the delimiter, then this is how the empty "cells" are presented in 
+this file. So, maybe we can try setting the null as a NA value:
+
+```{r null_as_na, eval=FALSE}
+try(read.table(txt_file, nrows = 1, fileEncoding = "UTF-16LE", na.strings = "\x00"))
+```
+
+```
+Error: nul character not allowed (line 1)
+```
+
+Unfortunately we are not allowed to enter nulls here. So, we just skip them. 
+That will leave the empty cells truly empty ("") and so we use the empty 
+string as the NA string with `na.strings = ""`. 
+
+At least now we have a better idea of what embedded nulls are, why 
+they're there (probably), and why it's (probably) okay to skip them, at least in 
+this situation.
