@@ -500,14 +500,14 @@ x8 <- "1"
 Encoding(x8) <- "UTF-8"
 x16LE <- iconv(x8, "UTF-8", "UTF-16LE", toRaw = TRUE)
 x16BE <- iconv(x8, "UTF-8", "UTF-16BE", toRaw = TRUE)
-kable(t(c(x = x8, `UTF-8` = charToRaw("1"), `UTF-16LE` = x16LE, `UTF-16BE` = x16BE)), format = "simple")
+kable(t(c(x = x8, `UTF-8` = charToRaw("1"), `UTF-16LE` = x16LE, `UTF-16BE` = x16BE)))
 ```
 
 
 
-x    UTF-8          UTF-16LE                UTF-16BE              
----  -------------  ----------------------  ----------------------
-1    as.raw(0x31)   as.raw(c(0x31, 0x00))   as.raw(c(0x00, 0x31)) 
+|x  |UTF-8        |UTF-16LE              |UTF-16BE              |
+|:--|:------------|:---------------------|:---------------------|
+|1  |as.raw(0x31) |as.raw(c(0x31, 0x00)) |as.raw(c(0x00, 0x31)) |
 
 Those `00` values look like the dreaded "embedded nulls", right? But now we see 
 those are valid after all. They are simply one of the two bytes of some UTF-16 
