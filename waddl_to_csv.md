@@ -496,11 +496,12 @@ an example that compares the bytes of LE and BE representing the character "1":
 
 
 ```r
-x8 <- "1"
-Encoding(x8) <- "UTF-8"
-x16LE <- iconv(x8, "UTF-8", "UTF-16LE", toRaw = TRUE)
-x16BE <- iconv(x8, "UTF-8", "UTF-16BE", toRaw = TRUE)
-kable(t(c(x = x8, `UTF-8` = charToRaw("1"), `UTF-16LE` = x16LE, `UTF-16BE` = x16BE)))
+x <- "1"
+Encoding(x) <- "UTF-8"
+x8 <- charToRaw(x)
+x16LE <- iconv(x, "UTF-8", "UTF-16LE", toRaw = TRUE)
+x16BE <- iconv(x, "UTF-8", "UTF-16BE", toRaw = TRUE)
+kable(t(c(x = x, `UTF-8` = x8, `UTF-16LE` = x16LE, `UTF-16BE` = x16BE)))
 ```
 
 
