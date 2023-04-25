@@ -416,7 +416,7 @@ df <- rename(df, any_of(lookup))
 
 Now, all we need to do is remove extra spaces from the value columns, abbreviate 
 the names of the drug value columns, and remove the original drug name columns. 
-We won't worry about proving column names for the non-drug columns right now.
+We won't worry about providing column names for the non-drug columns right now.
 
 
 ```r
