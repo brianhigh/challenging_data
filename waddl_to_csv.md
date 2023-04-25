@@ -13,12 +13,13 @@ editor_options:
 
 ## Read WADDL file and convert to CSV
 
-We will use an example "text" data file, a modified subset of a file from the 
-[Washington Animal Disease Diagnostic Laboratory](https://waddl.vetmed.wsu.edu/) (WADDL).
+We will use an example "text" data file, a modified subset of a file we were told 
+came from the [Washington Animal Disease Diagnostic Laboratory](https://waddl.vetmed.wsu.edu/ (WADDL). We were asked to read the file into R, but we were not told anything 
+about the file format or structure, except that it was a "text" file.
 
-This file format is challenging because the functions you would normally 
+This particular file format is challenging because the functions you would normally 
 use for reading "text" files will not work without using some special options. 
-Further, the data are not arranged in familiar "columns are variables" structure.
+Further, the data are not arranged in a familiar and [tidy](https://tidyr.tidyverse.org/articles/tidy-data.html) "columns are variables" structure.
 
 We will explore how to address the issues that come up when reading this file: 
 
@@ -116,20 +117,22 @@ readr::guess_encoding(txt_file, n_max = 1)
 ```
 
 And the guesses are listed with the most likely encoding at the the top of the 
-list with a probability of 1. We can verify that by checking the first two bytes 
+list with a probability of 1. We can verify that by checking the first four bytes 
 for the "byte order mark" (BOM):
 
 
 ```r
-# Look for a byte order mark (BOM) in the first two bytes to verify encoding
-readBin(txt_file, what = "raw", n = 2)
+# Look for a byte order mark (BOM) in the first four bytes to verify encoding
+readBin(txt_file, what = "raw", n = 4)
 ```
 
 ```
-## [1] ff fe
+## [1] ff fe 31 00
 ```
 
-We see a BOM of `ff fe`, verifying the UTF-16LE encoding.
+We see a two-byte BOM of `ff fe`, followed by the first two-byte character of 
+our data, "1" (the row number?), and "1" is `31 00` in UTF-16LE encoding. This 
+verifies UTF-16LE encoding.
 
 - See: https://www.unicode.org/faq/utf_bom.html#bom4
 - And: https://en.wikipedia.org/wiki/Byte_order_mark#UTF-16
