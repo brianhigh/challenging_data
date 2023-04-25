@@ -172,14 +172,16 @@ df <- read.table(txt_file, sep = "\t", header = FALSE, skipNul = TRUE,
                  fileEncoding = "UTF-16LE")
 
 # View data
-df[1:5, 1:20]
+df[1:5, 1:50]
 ```
 
-But when we view the data, we see there are blank fields. We would prefer to 
-see NAs here. Let's see what's really in those empty fields.
+But when we view the data, we see there are some blank fields in columns V23, V42, 
+and columns after that. We would prefer to see NAs here. Let's see what's really 
+in those empty fields.
 
 ```{r }
-df$V42[1:5]
+unique(df$V23)
+unique(df$V42)
 ```
 
 So, the blank fields are really the empty string (""). We will read in the 
@@ -191,7 +193,7 @@ df <- read.table(txt_file, sep = "\t", header = FALSE, skipNul = TRUE,
                  fileEncoding = "UTF-16LE", na.strings = "")
 
 # View data
-df[1:5, 1:20]
+df[1:5, 1:50]
 ```
 
 So, now the blank fields have NA instead.

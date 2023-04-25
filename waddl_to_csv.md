@@ -251,7 +251,7 @@ We get no errors when we try to read all of the rows.
 df <- read.table(txt_file, sep = "\t", header = FALSE, skipNul = TRUE, fileEncoding = "UTF-16LE")
 
 # View data
-df[1:5, 1:20]
+df[1:5, 1:50]
 ```
 
 ```
@@ -261,24 +261,45 @@ df[1:5, 1:20]
 ## 3  3 99050 2099-0707 NA NA NA 2099-0707.2  2 NA S.AUR ANY ANY  NA  -1  NA  NA
 ## 4  4 99057 2099-0031 NA NA NA 2099-0031.1  1 NA E.COL ANY EQU  NA  -1  NA  NA
 ## 5  5 99058 2099-0129 NA NA NA 2099-0129.1  1 NA E.COL   U CAN  NA  -1  NA  NA
-##   V17 V18 V19 V20
-## 1  NA  NA   0   0
-## 2  NA  NA   0   0
-## 3  NA  NA   0   0
-## 4  NA  NA   0   0
-## 5  NA  NA   0   0
+##   V17 V18 V19 V20 V21 V22 V23 V24 V25 V26 V27 V28 V29 V30 V31 V32 V33 V34 V35
+## 1  NA  NA   0   0  NA  NA   +  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA
+## 2  NA  NA   0   0  NA  NA   +  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA
+## 3  NA  NA   0   0  NA  NA   +  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA
+## 4  NA  NA   0   0  NA  NA      NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA
+## 5  NA  NA   0   0  NA  NA      NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA
+##   V36 V37 V38 V39 V40                 V41    V42        V43    V44    V45
+## 1  NA  NA  NA  NA  24 2099-05-25 13:27:05                                
+## 2  NA  NA  NA  NA  24 2099-06-01 09:14:28                                
+## 3  NA  NA  NA  NA  24 2099-06-01 13:42:48 AMIKAC <=      16 NOINTP AMOCLA
+## 4  NA  NA  NA  NA  18 2099-06-02 10:24:16 AMIKAC <=       4   SUSC       
+## 5  NA  NA  NA  NA  24 2099-06-05 08:22:22 AMIKAC <=       4   SUSC AMOCLA
+##          V46   V47    V48        V49    V50
+## 1                                          
+## 2                                          
+## 3  =     0.5 INTER AMPICI  =       4 RESIST
+## 4                  AMPICI  >      32 RESIST
+## 5  =       4  SUSC AMPICI  =       4   SUSC
 ```
 
-But when we view the data, we see there are blank fields. We would prefer to 
-see NAs here. Let's see what's really in those empty fields.
+But when we view the data, we see there are some blank fields in columns V23, V42, 
+and columns after that. We would prefer to see NAs here. Let's see what's really 
+in those empty fields.
 
 
 ```r
-df$V42[1:5]
+unique(df$V23)
 ```
 
 ```
-## [1] ""       ""       "AMIKAC" "AMIKAC" "AMIKAC"
+## [1] "+" ""  "-"
+```
+
+```r
+unique(df$V42)
+```
+
+```
+## [1] ""       "AMIKAC"
 ```
 
 So, the blank fields are really the empty string (""). We will read in the 
@@ -290,7 +311,7 @@ file again setting `na.strings = ""`.
 df <- read.table(txt_file, sep = "\t", header = FALSE, skipNul = TRUE, fileEncoding = "UTF-16LE", na.strings = "")
 
 # View data
-df[1:5, 1:20]
+df[1:5, 1:50]
 ```
 
 ```
@@ -300,12 +321,24 @@ df[1:5, 1:20]
 ## 3  3 99050 2099-0707 NA NA NA 2099-0707.2  2 NA S.AUR ANY ANY  NA  -1  NA  NA
 ## 4  4 99057 2099-0031 NA NA NA 2099-0031.1  1 NA E.COL ANY EQU  NA  -1  NA  NA
 ## 5  5 99058 2099-0129 NA NA NA 2099-0129.1  1 NA E.COL   U CAN  NA  -1  NA  NA
-##   V17 V18 V19 V20
-## 1  NA  NA   0   0
-## 2  NA  NA   0   0
-## 3  NA  NA   0   0
-## 4  NA  NA   0   0
-## 5  NA  NA   0   0
+##   V17 V18 V19 V20 V21 V22  V23 V24 V25 V26 V27 V28 V29 V30 V31 V32 V33 V34 V35
+## 1  NA  NA   0   0  NA  NA    +  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA
+## 2  NA  NA   0   0  NA  NA    +  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA
+## 3  NA  NA   0   0  NA  NA    +  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA
+## 4  NA  NA   0   0  NA  NA <NA>  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA
+## 5  NA  NA   0   0  NA  NA <NA>  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA
+##   V36 V37 V38 V39 V40                 V41    V42        V43    V44    V45
+## 1  NA  NA  NA  NA  24 2099-05-25 13:27:05   <NA>       <NA>   <NA>   <NA>
+## 2  NA  NA  NA  NA  24 2099-06-01 09:14:28   <NA>       <NA>   <NA>   <NA>
+## 3  NA  NA  NA  NA  24 2099-06-01 13:42:48 AMIKAC <=      16 NOINTP AMOCLA
+## 4  NA  NA  NA  NA  18 2099-06-02 10:24:16 AMIKAC <=       4   SUSC   <NA>
+## 5  NA  NA  NA  NA  24 2099-06-05 08:22:22 AMIKAC <=       4   SUSC AMOCLA
+##          V46   V47    V48        V49    V50
+## 1       <NA>  <NA>   <NA>       <NA>   <NA>
+## 2       <NA>  <NA>   <NA>       <NA>   <NA>
+## 3  =     0.5 INTER AMPICI  =       4 RESIST
+## 4       <NA>  <NA> AMPICI  >      32 RESIST
+## 5  =       4  SUSC AMPICI  =       4   SUSC
 ```
 
 So, now the blank fields have NA instead.
