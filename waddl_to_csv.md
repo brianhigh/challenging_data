@@ -27,10 +27,9 @@ We will explore how to address the issues that come up when reading this file:
 - Unexpected "invalid multibyte string" error
 - Unusual file encoding type
 - Less common separator/delimiter
-- Missing "elements" (blank values)
 - Missing header (no column names)
-- Columns with no values (which we fill remove)
-- Rows missing any useful data (which we fill remove)
+- Columns with no values (which we will remove)
+- Rows missing any useful data (which we will remove)
 - Unusual data structure (not "tidy", as in not "columns are variables")
 
 For the curious, we also provide more details in three appendices:
@@ -219,7 +218,12 @@ We get no errors when we try to read all of the rows.
 ```r
 # Read file
 df <- read.table(txt_file, sep = "\t", header = FALSE, skipNul = TRUE, fileEncoding = "UTF-16LE")
+```
 
+Yay! Let's take a look...
+
+
+```r
 # View data
 df[1:5, 1:50]
 ```
@@ -251,9 +255,8 @@ df[1:5, 1:50]
 ## 5  =       4  SUSC AMPICI  =       4   SUSC
 ```
 
-But when we view the data, we see there are some blank fields in columns V23, V42, 
-and columns after that. We would prefer to see NAs here. Let's see what's really 
-in those empty fields.
+We see there are some blank fields in columns V23, V42, and columns after that. 
+We would prefer to see NAs here. Let's see what's really in those empty fields.
 
 
 ```r
@@ -272,8 +275,8 @@ unique(df$V42)
 ## [1] ""       "AMIKAC"
 ```
 
-So, the blank fields are really the empty string (""). We will read in the 
-file again setting `na.strings = ""`.
+The blank fields are really the empty string (""). We will read the file again 
+setting `na.strings = ""`.
 
 
 ```r
@@ -313,10 +316,29 @@ df[1:5, 1:50]
 
 So, now the blank fields have NA instead.
 
-## Using `readr`
+## Using `utils::read.delim()`
 
-We have been using `base`-R functions to read the file. We can use the `readr` 
-function `read_tsv()` instead.
+Alternatively, we can read the file with `read.delim()`. We can also omit 
+`sep = "\t"` when using this function with this file.
+
+
+```r
+# Read file
+df1 <- read.delim(txt_file, header = FALSE, skipNul = TRUE, fileEncoding = "UTF-16LE", na.strings = "")
+
+# Test to see if results are equal
+all.equal(df, df1)
+```
+
+```
+## [1] TRUE
+```
+
+## Using `readr::read_tsv()`
+
+We have been using classic "base R" functions from the built-in `utils` package 
+to read the file. We can use the `readr` function `read_tsv()` instead. `readr` 
+is one of the [core tidyverse packages](https://www.tidyverse.org/packages/).
 
 
 ```r
@@ -341,9 +363,52 @@ all.equal(df1, df2)
 ## [1] TRUE
 ```
 
-## Using `data.table`
+We can also try `read_delim()`, but we need to specify the delimiter, and we 
+get some warnings. 
 
-We might also consider using `fread` from the `data.table` package, but it 
+
+```r
+df2 <- read_delim(txt_file, locale = locale(encoding = "UTF-16LE"), col_names = FALSE, na = "", delim = "\t")
+```
+
+```
+## Warning: One or more parsing issues, call `problems()` on your data frame for details,
+## e.g.:
+##   dat <- vroom(...)
+##   problems(dat)
+```
+
+```r
+problems()
+```
+
+We can ignore those warnings, since they just relate to the guessed 
+column types and the NA value of "". If this function were to guess the 
+column types *after* doing the NA conversion, the errors would be avoided, but 
+the function does not seem to be smart enough to do that.
+
+The results are the same, however, so we can silence the warnings.
+
+
+```r
+df2 <- read_delim(txt_file, locale = locale(encoding = "UTF-16LE"), col_names = FALSE, na = "", delim = "\t") %>%
+    suppressWarnings()
+
+df2 <- df2 %>%
+    set_names(str_replace_all(names(.), "^X", "V")) %>%
+    mutate(across(where(is.character), ~str_trim(.x)))
+all.equal(df1, df2)
+```
+
+```
+## [1] TRUE
+```
+
+Even so, that's still messier than simply using `read_tsv()` with this file. 
+
+## Using `data.table::fread()`
+
+We might also consider using `fread()` from the `data.table` package, but it 
 doesn't support UTF-16 encoding. So, we need to modify the file encoding 
 beforehand with an extra step. We can do this with `readLines()`. We also have 
 to remove the BOM, so we'll do that with `str_remove()`. There are blank lines 
