@@ -521,7 +521,7 @@ anything about its encoding, embedded nulls, or tab delimiter.
 ```r
 guess_locale <- function(file, n_max = 10000, threshold = 0.2, ...) {
     require(readr)
-    file_locale <- readr::locale()
+    file_locale <- readr::locale(...)
     file_encoding <- readr::guess_encoding(file, n_max = 1, threshold = threshold)[1, ]$encoding
     if (!is.na(file_encoding) & is.character(file_encoding) & str_length(file_encoding) > 0) {
         file_locale <- readr::locale(encoding = file_encoding, ...)
