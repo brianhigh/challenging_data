@@ -201,16 +201,12 @@ So, now the blank fields have NA instead.
 
 ## Using `readr`
 
-We have been using `base`-R functions to read the file. We could use `readr` 
-functions instead. There will be warnings related to the embedded nulls, and 
-there is no feature in `read_tsv()` to skip them, so we will just suppress them. 
-And to be consistent with `base`-R, we will change the "X" in the variable names 
-to "V".
+We have been using `base`-R functions to read the file. We could the `readr` 
+function `read_tsv()` instead.
 
 ```{r, read_tsv}
 df2 <- read_tsv(txt_file, locale = locale(encoding = "UTF-16LE"), 
-               col_names = FALSE, na = "") %>% 
-  suppressWarnings() %>% set_names(str_replace_all(names(.), '^X', 'V'))
+               col_names = FALSE, na = "")
 ```
 
 The results, after some further processing, are identical:
@@ -218,7 +214,9 @@ The results, after some further processing, are identical:
 ```{r compare_results}
 df1 <- df %>% as_tibble() %>% mutate(V41 = as.POSIXct(V41, tz = "UTC")) %>% 
   mutate(across(where(is.character), ~ str_trim(.x)))
-df2 <- df2 %>% mutate(across(where(is.character), ~ str_trim(.x)))
+df2 <- df2 %>% 
+  set_names(str_replace_all(names(.), '^X', 'V')) %>% 
+  mutate(across(where(is.character), ~ str_trim(.x)))
 all.equal(df1, df2)
 ```
 
