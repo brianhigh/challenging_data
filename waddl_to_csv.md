@@ -523,7 +523,7 @@ guess_locale <- function(file, n_max = 10000, threshold = 0.2, ...) {
     require(stringi, quietly = TRUE)
     require(readr, quietly = TRUE)
 
-    file_encoding <- readr::guess_encoding(file, n_max = 1, threshold = threshold)[1, ]$encoding
+    file_encoding <- readr::guess_encoding(file, n_max = n_max, threshold = threshold)[1, ]$encoding
 
     valid_encodings <- stringi::stri_enc_list(simplify = TRUE)
 
@@ -536,7 +536,7 @@ guess_locale <- function(file, n_max = 10000, threshold = 0.2, ...) {
     return(file_locale)
 }
 
-df5 <- vroom(txt_file, locale = guess_locale(txt_file), col_names = FALSE, show_col_types = FALSE)
+df5 <- vroom(txt_file, locale = guess_locale(txt_file, n_max = 1), col_names = FALSE, show_col_types = FALSE)
 
 df5 <- df5 %>%
     set_names(str_replace_all(names(.), "^X", "V")) %>%
