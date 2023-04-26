@@ -212,7 +212,8 @@ df2 <- read_tsv(txt_file, locale = locale(encoding = "UTF-16LE"),
 The results, after some further processing, are identical:
 
 ```{r compare_results}
-df1 <- df %>% as_tibble() %>% mutate(V41 = as.POSIXct(V41, tz = "UTC")) %>% 
+df1 <- df %>% as_tibble() %>% 
+  mutate(V41 = as.POSIXct(V41, tz = "UTC")) %>% 
   mutate(across(where(is.character), ~ str_trim(.x)))
 df2 <- df2 %>% 
   set_names(str_replace_all(names(.), '^X', 'V')) %>% 
