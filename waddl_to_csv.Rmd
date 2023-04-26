@@ -27,13 +27,13 @@ We will explore how to address the issues that come up when reading this file:
 
 - Unexpected "embedded nulls" warning
 - Unexpected "invalid multibyte string" error
-- Unexpected file encoding type
-- Unexpected delimiter (tab)
-- Missing "elements" (values)
-- Missing header
-- Columns with no values (to remove)
-- Rows missing any useful data (to remove)
-- Unusual data structure (not "columns are variables")
+- Unusual file encoding type
+- Less common separator/delimiter
+- Missing "elements" (blank values)
+- Missing header (no column names)
+- Columns with no values (which we fill remove)
+- Rows missing any useful data (which we fill remove)
+- Unusual data structure (not "tidy", as in not "columns are variables")
 
 For the curious, we also provide more details in three appendices:
 
