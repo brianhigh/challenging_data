@@ -520,6 +520,9 @@ anything about its encoding, embedded nulls, or tab delimiter.
 
 ```r
 guess_locale <- function(file, n_max = 10000, threshold = 0.2, ...) {
+    # Parameters file,. n_max, and threshold are passed to readr::guess_encoding().  Parameters ...
+    # are passed to readr::locale().
+
     require(stringi, quietly = TRUE)
     require(readr, quietly = TRUE)
 
