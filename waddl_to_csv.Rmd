@@ -72,36 +72,37 @@ online.
 The file can be opened in Notepad and [Notepad++](https://notepad-plus-plus.org/), 
 but will not show much when opened in R's text editor. In Notepad++ we turned on 
 View -> Show Symbol -> Show All Characters. We see it has no column headers, 
-is tab delimited, contains NUL characters, and the columns all line up like a 
-fixed-width format, and the lines end with CRLF, or "carriage-return line-feed", the 
-standard text file line ending characters used on Windows systems). In Notepad++, 
-from the Encoding menu, we see "UTF-16 LE BOM". 
+is tab delimited (shown as arrows), contains NUL characters, and the lines end 
+with CR LF (carriage-return line-feed), the standard text file line ending 
+characters used on Windows systems. In Notepad++, from the Encoding menu, we 
+see "UTF-16 LE BOM". 
 
 Opening the file on a Mac with [BBEdit](https://www.barebones.com/products/bbedit/), 
-we selected View -> Text Display -> Show Invisibles. This showed the tabs as grey 
-triangles and there was an upside-down red question mark where there were no data 
-values. Maybe that's for the NULs. At the bottom in the status bar, it says 
-"Text File", "Unicode (UTF-16 Little-Endian)" and "Windows (CRLF)". So, that's 
-the same file encoding as Notepad++ reported, but without the "BOM". If you 
-select the file encoding in the status bar of BBEdit, you see that there is 
-another choice for "Unicode (UTF-16 Little-Endian, no BOM)", so that means 
-the one selected for us must mean "with BOM" implicitly.
+we selected View -> Text Display -> Show Invisibles. This shows the tabs as grey 
+triangles and upside-down red question marks where there are no data values 
+(empty fields). Maybe that is the symbol for NULs. At the bottom in the status 
+bar, it says "Text File", "Unicode (UTF-16 Little-Endian)" and "Windows (CRLF)". 
+So, that's the same file encoding as Notepad++ reported, but without the "BOM". 
+If you select the file encoding shown in the status bar of BBEdit, you see that 
+there is another choice for "Unicode (UTF-16 Little-Endian, no BOM)", so that 
+implies the encoding of this file is "with BOM".
 
-So, we expect a normal "text" file, because of the file suffix, but with NUL 
-characters and an atypical file encoding. Normally, we would expect UTF-8, ANSI 
-(Windows-1252 or CP-1252), ASCII, or Latin-1 (ISO/IEC 8859-1). It's strange 
-that, when opened in R's text editor, the file does not show more than the 
-first character of the file ("1"). Maybe the encoding type or NUL characters 
-are not supported by R's text editor.  
+So, we expect we can read this file into R as "text", because of the file suffix, 
+but the NUL characters and atypical file encoding might need special treatment. 
+Normally, we would expect a text file to not have any NUL characters and to be 
+encoded as UTF-8, ANSI (Windows-1252 or CP-1252), ASCII, or Latin-1 
+(ISO/IEC 8859-1). It's interesting that, when opened in R's text editor, the file 
+does not show more than just the first character of the file ("1"). Maybe the 
+encoding type or NUL characters are not supported by R's text editor.  
 
-We could convert the file format in either Notepad++ or BBedit to UTF-8 and make 
-our lives a little easier, but we will try to do all processing in R for 
-better automation and reproducibility.
+We could convert the file format in either Notepad++ or BBedit to UTF-8 (or convert 
+with a shell utility like `iconv`) and make our lives a little easier, but we 
+will try to do all processing in R for better automation and reproducibility.
 
 ## Embedded nulls
 
 We will start with `read.table()`, specifying a tab delimiter and no header, 
-and reading in hust the first line. When we read it in we get some unexpected 
+and reading in just the first line. When we read it in we get some unexpected 
 messages.
 
 ```{r embedded_nuls_and_multibyte_strings}
@@ -109,7 +110,7 @@ messages.
 try(read.table(txt_file, sep = "\t", header = FALSE, nrows = 1))
 ```
 
-We see a warning "appears to contain embedded nulls". We saw NUL characters in 
+We get a warning "appears to contain embedded nulls". We saw NUL characters in 
 Notepad++, and red upside-down question marks in BBEdit for empty fields, so 
 perhaps that's what this is about. The warning will go away if we use `skipNul = TRUE`.
 
@@ -118,12 +119,12 @@ perhaps that's what this is about. The warning will go away if we use `skipNul =
 try(read.table(txt_file, sep = "\t", header = FALSE, nrows = 1, skipNul = TRUE))
 ```
 
-We still see the "invalid multibyte string" error.
+However, we still see the "invalid multibyte string" error.
 
 ## Invalid multibyte strings
 
 The "invalid multibyte string" error is a clue that the file is not encoded as 
-expected (usually UTF-8 or ASCII), so we check to see what it might be instead.
+expected (usually UTF-8, ANSI, or ASCII), so we check this with `guess_encoding()`.
 
 ```{r encoding}
 # Check file encoding
@@ -134,7 +135,7 @@ And the guesses are listed with the most likely encoding, "UTF-16LE", at the the
 top of the list with a probability of 1. Notepad++ showed the same encoding, 
 but added "BOM". We can verify that encoding by checking the first four bytes 
 of the file for the "byte order mark" (BOM). For UTF-16, we would expect a 
-two-byte BOM, so checked the next two bytes after that will also let us see the 
+two-byte BOM, so checking the next two bytes after that will also let us see the 
 first two-byte character of data.
 
 ```{r BOM}
@@ -142,28 +143,28 @@ first two-byte character of data.
 readBin(txt_file, what = "raw", n = 4)
 ```
 
-We see a two-byte BOM of `ff fe`, followed by the first two-byte character of 
-our data, "1", and "1" is `31 00` in UTF-16LE encoding. This verifies UTF-16LE 
-BOM encoding.
+This shows four pairs of symbols. Each pair represents the hexadecimal values 
+for a byte (8 bits). With a 16-bit encoding, each character in the file is 
+represented by 2 bytes. The first two bytes are `ff fe`, which is the "BOM" 
+associated with UTF-16LE encoding. The next two bytes are `31 00`, which 
+represents the character "1" in UTF-16LE. "1" is the first character of data 
+in this file. These four bytes confirm UTF-16LE with BOM encoding for this file.
 
 - See: https://www.unicode.org/faq/utf_bom.html#bom4
 - And: https://en.wikipedia.org/wiki/Byte_order_mark#UTF-16
 
 The BOM is the source of the "invalid multibyte string" error because `read.table()` 
-does not know this is a UTF-16LE file having the associated BOM. 
-
-The `\xff` and `\xfe` are the hexadecimal values for these two special "bytes", 
-where a byte is 16 "bits". 
+does not know this file is encoded as UTF-16LE with BOM. 
 
 When we set `fileEncoding = "UTF-16LE"`, reading the first line, there are no 
-errors. The BOM was removed automatically.
+errors. We do not have to specify "BOM", and the BOM will be removed automatically.
 
 ```{r one_row}
 read.table(txt_file, sep = "\t", header = FALSE, nrows = 1, skipNul = TRUE, 
-           fileEncoding = "UTF-16LE") 
+           fileEncoding = "UTF-16LE") %>% as_tibble()
 ```
 
-## Read more rows
+## Read the whole file
 
 We get no errors when we try to read all of the rows.
 
@@ -201,7 +202,7 @@ So, now the blank fields have NA instead.
 
 ## Using `readr`
 
-We have been using `base`-R functions to read the file. We could the `readr` 
+We have been using `base`-R functions to read the file. We can use the `readr` 
 function `read_tsv()` instead.
 
 ```{r, read_tsv}
@@ -225,7 +226,10 @@ all.equal(df1, df2)
 
 We might also consider using `fread` from the `data.table` package, but it 
 doesn't support UTF-16 encoding. So, we need to modify the file encoding 
-beforehand as an extra step. We can do this with `readLines()`.
+beforehand with an extra step. We can do this with `readLines()`. We also have 
+to remove the BOM, so we'll do that with `str_remove()`. There are blank lines 
+alternating with the data lines, and if we don't remove them, `fread()` will 
+only read the first line. So, we'll use `blank.lines.skip = TRUE` to fix this.
 
 ```{r fread}
 df3 <- readLines(txt_file, encoding = "UTF-16LE", skipNul = TRUE) %>% 
@@ -234,7 +238,7 @@ df3 <- readLines(txt_file, encoding = "UTF-16LE", skipNul = TRUE) %>%
         blank.lines.skip = TRUE)
 ```
 
-And when we further process the results a little, we get identical results.
+And after some additional processing, we get identical results.
 
 ```{r compare_results_with_fread}
 df1 <- df %>% as.data.table() %>%
@@ -274,7 +278,7 @@ df[1:5, 1:20]
 ## Remove rows with no drug data
 
 By inspection, we see the drug data (name, quantity, etc.) starts at column V42. 
-Some rows do not have any data from that column onwards, so we will remove those 
+Some rows do not have any data from that column onward, so we will remove those 
 rows, as we don't need them.
 
 ```{r filter_rows}

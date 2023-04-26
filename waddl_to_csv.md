@@ -71,36 +71,37 @@ online.
 The file can be opened in Notepad and [Notepad++](https://notepad-plus-plus.org/), 
 but will not show much when opened in R's text editor. In Notepad++ we turned on 
 View -> Show Symbol -> Show All Characters. We see it has no column headers, 
-is tab delimited, contains NUL characters, and the columns all line up like a 
-fixed-width format, and the lines end with CRLF, or "carriage-return line-feed", the 
-standard text file line ending characters used on Windows systems). In Notepad++, 
-from the Encoding menu, we see "UTF-16 LE BOM". 
+is tab delimited (shown as arrows), contains NUL characters, and the lines end 
+with CR LF (carriage-return line-feed), the standard text file line ending 
+characters used on Windows systems. In Notepad++, from the Encoding menu, we 
+see "UTF-16 LE BOM". 
 
 Opening the file on a Mac with [BBEdit](https://www.barebones.com/products/bbedit/), 
-we selected View -> Text Display -> Show Invisibles. This showed the tabs as grey 
-triangles and there was an upside-down red question mark where there were no data 
-values. Maybe that's for the NULs. At the bottom in the status bar, it says 
-"Text File", "Unicode (UTF-16 Little-Endian)" and "Windows (CRLF)". So, that's 
-the same file encoding as Notepad++ reported, but without the "BOM". If you 
-select the file encoding in the status bar of BBEdit, you see that there is 
-another choice for "Unicode (UTF-16 Little-Endian, no BOM)", so that means 
-the one selected for us must mean "with BOM" implicitly.
+we selected View -> Text Display -> Show Invisibles. This shows the tabs as grey 
+triangles and upside-down red question marks where there are no data values 
+(empty fields). Maybe that is the symbol for NULs. At the bottom in the status 
+bar, it says "Text File", "Unicode (UTF-16 Little-Endian)" and "Windows (CRLF)". 
+So, that's the same file encoding as Notepad++ reported, but without the "BOM". 
+If you select the file encoding shown in the status bar of BBEdit, you see that 
+there is another choice for "Unicode (UTF-16 Little-Endian, no BOM)", so that 
+implies the encoding of this file is "with BOM".
 
-So, we expect a normal "text" file, because of the file suffix, but with NUL 
-characters and an atypical file encoding. Normally, we would expect UTF-8, ANSI 
-(Windows-1252 or CP-1252), ASCII, or Latin-1 (ISO/IEC 8859-1). It's strange 
-that, when opened in R's text editor, the file does not show more than the 
-first character of the file ("1"). Maybe the encoding type or NUL characters 
-are not supported by R's text editor.  
+So, we expect we can read this file into R as "text", because of the file suffix, 
+but the NUL characters and atypical file encoding might need special treatment. 
+Normally, we would expect a text file to not have any NUL characters and to be 
+encoded as UTF-8, ANSI (Windows-1252 or CP-1252), ASCII, or Latin-1 
+(ISO/IEC 8859-1). It's interesting that, when opened in R's text editor, the file 
+does not show more than just the first character of the file ("1"). Maybe the 
+encoding type or NUL characters are not supported by R's text editor.  
 
-We could convert the file format in either Notepad++ or BBedit to UTF-8 and make 
-our lives a little easier, but we will try to do all processing in R for 
-better automation and reproducibility.
+We could convert the file format in either Notepad++ or BBedit to UTF-8 (or convert 
+with a shell utility like `iconv`) and make our lives a little easier, but we 
+will try to do all processing in R for better automation and reproducibility.
 
 ## Embedded nulls
 
 We will start with `read.table()`, specifying a tab delimiter and no header, 
-and reading in hust the first line. When we read it in we get some unexpected 
+and reading in just the first line. When we read it in we get some unexpected 
 messages.
 
 
@@ -119,7 +120,7 @@ try(read.table(txt_file, sep = "\t", header = FALSE, nrows = 1))
 ##   invalid multibyte string at '<ff><fe>1'
 ```
 
-We see a warning "appears to contain embedded nulls". We saw NUL characters in 
+We get a warning "appears to contain embedded nulls". We saw NUL characters in 
 Notepad++, and red upside-down question marks in BBEdit for empty fields, so 
 perhaps that's what this is about. The warning will go away if we use `skipNul = TRUE`.
 
@@ -134,12 +135,12 @@ try(read.table(txt_file, sep = "\t", header = FALSE, nrows = 1, skipNul = TRUE))
 ##   invalid multibyte string at '<ff><fe>1'
 ```
 
-We still see the "invalid multibyte string" error.
+However, we still see the "invalid multibyte string" error.
 
 ## Invalid multibyte strings
 
 The "invalid multibyte string" error is a clue that the file is not encoded as 
-expected (usually UTF-8 or ASCII), so we check to see what it might be instead.
+expected (usually UTF-8, ANSI, or ASCII), so we check this with `guess_encoding()`.
 
 
 ```r
@@ -161,7 +162,7 @@ And the guesses are listed with the most likely encoding, "UTF-16LE", at the the
 top of the list with a probability of 1. Notepad++ showed the same encoding, 
 but added "BOM". We can verify that encoding by checking the first four bytes 
 of the file for the "byte order mark" (BOM). For UTF-16, we would expect a 
-two-byte BOM, so checked the next two bytes after that will also let us see the 
+two-byte BOM, so checking the next two bytes after that will also let us see the 
 first two-byte character of data.
 
 
@@ -174,75 +175,43 @@ readBin(txt_file, what = "raw", n = 4)
 ## [1] ff fe 31 00
 ```
 
-We see a two-byte BOM of `ff fe`, followed by the first two-byte character of 
-our data, "1", and "1" is `31 00` in UTF-16LE encoding. This verifies UTF-16LE 
-BOM encoding.
+This shows four pairs of symbols. Each pair represents the hexadecimal values 
+for a byte (8 bits). With a 16-bit encoding, each character in the file is 
+represented by 2 bytes. The first two bytes are `ff fe`, which is the "BOM" 
+associated with UTF-16LE encoding. The next two bytes are `31 00`, which 
+represents the character "1" in UTF-16LE. "1" is the first character of data 
+in this file. These four bytes confirm UTF-16LE with BOM encoding for this file.
 
 - See: https://www.unicode.org/faq/utf_bom.html#bom4
 - And: https://en.wikipedia.org/wiki/Byte_order_mark#UTF-16
 
 The BOM is the source of the "invalid multibyte string" error because `read.table()` 
-does not know this is a UTF-16LE file having the associated BOM. 
-
-The `\xff` and `\xfe` are the hexadecimal values for these two special "bytes", 
-where a byte is 16 "bits". 
+does not know this file is encoded as UTF-16LE with BOM. 
 
 When we set `fileEncoding = "UTF-16LE"`, reading the first line, there are no 
-errors. The BOM was removed automatically.
+errors. We do not have to specify "BOM", and the BOM will be removed automatically.
 
 
 ```r
-read.table(txt_file, sep = "\t", header = FALSE, nrows = 1, skipNul = TRUE, fileEncoding = "UTF-16LE")
+read.table(txt_file, sep = "\t", header = FALSE, nrows = 1, skipNul = TRUE, fileEncoding = "UTF-16LE") %>%
+    as_tibble()
 ```
 
 ```
-##   V1    V2        V3 V4 V5 V6          V7 V8 V9   V10 V11 V12 V13 V14 V15 V16
-## 1  1 99050 2099-0707 NA NA NA 2099-0707.2  2 NA S.AUR ANY ANY  NA  -1  NA  NA
-##   V17 V18 V19 V20 V21 V22 V23 V24 V25 V26 V27 V28 V29 V30 V31 V32 V33 V34 V35
-## 1  NA  NA   0   0  NA  NA   +  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA
-##   V36 V37 V38 V39 V40                 V41 V42 V43 V44 V45 V46 V47 V48 V49 V50
-## 1  NA  NA  NA  NA  24 2099-05-25 13:27:05  NA  NA  NA  NA  NA  NA  NA  NA  NA
-##   V51 V52 V53 V54 V55 V56 V57 V58 V59 V60 V61 V62 V63 V64 V65 V66 V67 V68 V69
-## 1  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA
-##   V70 V71 V72 V73 V74 V75 V76 V77 V78 V79 V80 V81 V82 V83 V84 V85 V86 V87 V88
-## 1  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA
-##   V89 V90 V91 V92 V93 V94 V95 V96 V97 V98 V99 V100 V101 V102 V103 V104 V105
-## 1  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA  NA   NA   NA   NA   NA   NA   NA
-##   V106 V107 V108 V109 V110 V111 V112 V113 V114 V115 V116 V117 V118 V119 V120
-## 1   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA
-##   V121 V122 V123 V124 V125 V126 V127 V128 V129 V130 V131 V132 V133 V134 V135
-## 1   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA
-##   V136 V137 V138 V139 V140 V141 V142 V143 V144 V145 V146 V147 V148 V149 V150
-## 1   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA
-##   V151 V152 V153 V154 V155 V156 V157 V158 V159 V160 V161 V162 V163 V164 V165
-## 1   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA
-##   V166 V167 V168 V169 V170 V171 V172 V173 V174 V175 V176 V177 V178 V179 V180
-## 1   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA
-##   V181 V182 V183 V184 V185 V186 V187 V188 V189 V190 V191 V192 V193 V194 V195
-## 1   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA
-##   V196 V197 V198 V199 V200 V201 V202 V203 V204 V205 V206 V207 V208 V209 V210
-## 1   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA
-##   V211 V212 V213 V214 V215 V216 V217 V218 V219 V220 V221 V222 V223 V224 V225
-## 1   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA
-##   V226 V227 V228 V229 V230 V231 V232 V233 V234 V235 V236 V237 V238 V239 V240
-## 1   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA
-##   V241 V242 V243 V244 V245 V246 V247 V248 V249 V250 V251 V252 V253 V254 V255
-## 1   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA
-##   V256 V257 V258 V259 V260 V261 V262 V263 V264 V265 V266 V267 V268 V269 V270
-## 1   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA
-##   V271 V272 V273 V274 V275 V276 V277 V278 V279 V280 V281 V282 V283 V284 V285
-## 1   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA
-##   V286 V287 V288 V289 V290 V291 V292 V293 V294 V295 V296 V297 V298 V299 V300
-## 1   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA
-##   V301 V302 V303 V304 V305 V306 V307 V308 V309 V310 V311 V312 V313 V314 V315
-## 1   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA
-##   V316 V317 V318 V319 V320 V321 V322 V323 V324 V325 V326 V327 V328 V329 V330
-## 1   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA
-##   V331 V332 V333 V334 V335 V336 V337 V338 V339 V340 V341
-## 1   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA   NA
+## # A tibble: 1 × 341
+##      V1    V2 V3     V4    V5    V6    V7       V8 V9    V10   V11   V12   V13  
+##   <int> <int> <chr>  <lgl> <lgl> <lgl> <chr> <int> <lgl> <chr> <chr> <chr> <lgl>
+## 1     1 99050 2099-… NA    NA    NA    2099…     2 NA    S.AUR ANY   ANY   NA   
+## # … with 328 more variables: V14 <int>, V15 <lgl>, V16 <lgl>, V17 <lgl>,
+## #   V18 <lgl>, V19 <int>, V20 <int>, V21 <lgl>, V22 <lgl>, V23 <chr>,
+## #   V24 <lgl>, V25 <lgl>, V26 <lgl>, V27 <lgl>, V28 <lgl>, V29 <lgl>,
+## #   V30 <lgl>, V31 <lgl>, V32 <lgl>, V33 <lgl>, V34 <lgl>, V35 <lgl>,
+## #   V36 <lgl>, V37 <lgl>, V38 <lgl>, V39 <lgl>, V40 <int>, V41 <chr>,
+## #   V42 <lgl>, V43 <lgl>, V44 <lgl>, V45 <lgl>, V46 <lgl>, V47 <lgl>,
+## #   V48 <lgl>, V49 <lgl>, V50 <lgl>, V51 <lgl>, V52 <lgl>, V53 <lgl>, …
 ```
 
-## Read more rows
+## Read the whole file
 
 We get no errors when we try to read all of the rows.
 
@@ -346,7 +315,7 @@ So, now the blank fields have NA instead.
 
 ## Using `readr`
 
-We have been using `base`-R functions to read the file. We could the `readr` 
+We have been using `base`-R functions to read the file. We can use the `readr` 
 function `read_tsv()` instead.
 
 
@@ -376,7 +345,10 @@ all.equal(df1, df2)
 
 We might also consider using `fread` from the `data.table` package, but it 
 doesn't support UTF-16 encoding. So, we need to modify the file encoding 
-beforehand as an extra step. We can do this with `readLines()`.
+beforehand with an extra step. We can do this with `readLines()`. We also have 
+to remove the BOM, so we'll do that with `str_remove()`. There are blank lines 
+alternating with the data lines, and if we don't remove them, `fread()` will 
+only read the first line. So, we'll use `blank.lines.skip = TRUE` to fix this.
 
 
 ```r
@@ -385,7 +357,7 @@ df3 <- readLines(txt_file, encoding = "UTF-16LE", skipNul = TRUE) %>%
     fread(text = ., sep = "\t", header = FALSE, na.strings = "", blank.lines.skip = TRUE)
 ```
 
-And when we further process the results a little, we get identical results.
+And after some additional processing, we get identical results.
 
 
 ```r
@@ -459,7 +431,7 @@ df[1:5, 1:20]
 ## Remove rows with no drug data
 
 By inspection, we see the drug data (name, quantity, etc.) starts at column V42. 
-Some rows do not have any data from that column onwards, so we will remove those 
+Some rows do not have any data from that column onward, so we will remove those 
 rows, as we don't need them.
 
 
