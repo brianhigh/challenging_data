@@ -519,6 +519,7 @@ anything about its encoding, embedded nulls, or tab delimiter.
 
 
 ```r
+# Define a function to create a locale using a guessed file encoding
 guess_locale <- function(file, n_max = 10000, threshold = 0.2, ...) {
     # Parameters file, n_max, and threshold are passed to readr::guess_encoding().  Parameters ...
     # are passed to readr::locale().
@@ -543,6 +544,7 @@ file_tz <- "America/Los_Angeles"
 file_locale <- guess_locale(txt_file, n_max = 1, tz = file_tz)
 df5 <- vroom(txt_file, locale = file_locale, col_names = FALSE, show_col_types = FALSE)
 
+# Check results
 df1 <- df %>%
     as_tibble() %>%
     mutate(V41 = as.POSIXct(V41, tz = file_tz)) %>%
