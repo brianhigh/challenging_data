@@ -47,7 +47,7 @@ First, we will load our R packages, set options, and set file paths.
 ```r
 # Attach packages, installing as needed
 if (!requireNamespace("pacman", quietly = TRUE)) install.packages("pacman")
-pacman::p_load(formatR, knitr, readr, dplyr, tidyr, stringr, purrr)
+pacman::p_load(formatR, knitr, readr, dplyr, tidyr, stringr, purrr, data.table)
 
 # Set options
 options(readr.show_col_types = FALSE, readr.show_progress = FALSE)
@@ -374,7 +374,28 @@ all.equal(df1, df2)
 
 We might also consider using `fread` from the `data.table` package, but it 
 doesn't support UTF-16 encoding. So, we would need to modify the file encoding 
-beforehand as an extra step.
+beforehand as an extra step. We can do this with `readLines()`. However, we 
+find that `fread()` will only read the first line this way. Not sure why.
+
+
+```r
+txt <- readLines(txt_file, encoding = "UTF-16LE", skipNul = TRUE) %>%
+    str_remove("^\xff\xfe")
+length(txt)
+```
+
+```
+## [1] 40
+```
+
+```r
+df3 <- fread(text = txt, sep = "\t", header = FALSE, na.strings = "")
+nrow(df3)
+```
+
+```
+## [1] 1
+```
 
 ## Check dimensions
 
