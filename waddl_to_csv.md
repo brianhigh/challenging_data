@@ -46,7 +46,7 @@ First, we will load our R packages, set options, and set file paths.
 ```r
 # Attach packages, installing as needed
 if (!requireNamespace("pacman", quietly = TRUE)) install.packages("pacman")
-pacman::p_load(formatR, knitr, readr, dplyr, tidyr, stringr, purrr, data.table)
+pacman::p_load(formatR, knitr, dplyr, tidyr, stringr, purrr, readr, data.table)
 
 # Set options
 options(readr.show_col_types = FALSE, readr.show_progress = FALSE)
@@ -426,23 +426,71 @@ df3 <- readLines(txt_file, encoding = "UTF-16LE", skipNul = TRUE) %>%
     fread(text = ., sep = "\t", header = FALSE, na.strings = "", blank.lines.skip = TRUE)
 ```
 
-And after some additional processing, we get identical results.
+If we have the [iconv](https://en.wikipedia.org/wiki/Iconv) shell utility 
+installed, we can use the `cmd` argument to perform the encoding conversion as 
+`fread()` reads the file.
 
 
 ```r
-df1 <- df %>%
-    as.data.table() %>%
-    mutate(V41 = as.POSIXct(V41, tz = "UTC")) %>%
-    mutate(across(where(is.character), ~str_trim(.x)))
-df3 <- df3 %>%
-    mutate(V41 = as.POSIXct(V41, tz = "UTC")) %>%
-    mutate(across(where(is.character), ~str_trim(.x)))
-all.equal(df1, df3)
+df4 <- fread(cmd = paste("iconv -f UTF-16LE -t UTF-8", txt_file), sep = "\t", header = FALSE, na.strings = "")
+all.equal(df3, df4)
 ```
 
 ```
 ## [1] TRUE
 ```
+
+We get identical results with either of these `fread()` approaches.
+
+It would be nicer to use R's `iconv()` function instead of the shell utility, 
+but the `iconv()` function does not support dropping embedded nulls.
+
+As with `read_delim()`, these two `fread` variations are messier than the earlier 
+alternatives, and so it would be difficult to justify using `fread` for this file.
+
+## Using `vroom::vroom()`
+
+The final alternative we will try is `vroom()`. We can use the same arguments 
+as for `read_delim()`.
+
+
+```r
+pacman::p_load(vroom)
+options(vroom.show_col_types = FALSE, vroom.show_progress = FALSE)
+```
+
+
+```r
+df5 <- vroom(txt_file, locale = locale(encoding = "UTF-16LE"), col_names = FALSE, na = "", delim = "\t")
+```
+
+```
+## Rows: 20 Columns: 341
+## ── Column specification ────────────────────────────────────────────────────────
+## Delimiter: "\t"
+## chr  (138): X3, X7, X10, X11, X12, X23, X42, X43, X44, X45, X46, X47, X48, X...
+## dbl    (7): X1, X2, X8, X14, X19, X20, X40
+## lgl  (195): X4, X5, X6, X9, X13, X15, X16, X17, X18, X21, X22, X24, X25, X26...
+## dttm   (1): X41
+## 
+## ℹ Use `spec()` to retrieve the full column specification for this data.
+## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+```
+
+```r
+df5 <- df5 %>%
+    set_names(str_replace_all(names(.), "^X", "V")) %>%
+    mutate(across(where(is.character), ~str_trim(.x)))
+all.equal(df1, df5)
+```
+
+```
+## [1] TRUE
+```
+
+`vroom()` is [supposed to be faster](https://vroom.r-lib.org/) than any of the 
+previous alternatives we have tried. And it's straightforward to use. So, that's 
+probably the best choice, at least for larger files.
 
 ## Check dimensions
 

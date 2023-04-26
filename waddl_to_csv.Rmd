@@ -47,7 +47,7 @@ First, we will load our R packages, set options, and set file paths.
 ```{r setup}
 # Attach packages, installing as needed
 if(!requireNamespace("pacman", quietly = TRUE)) install.packages("pacman")
-pacman::p_load(formatR, knitr, readr, dplyr, tidyr, stringr, purrr, data.table)
+pacman::p_load(formatR, knitr, dplyr, tidyr, stringr, purrr, readr, data.table)
 
 # Set options
 options(readr.show_col_types = FALSE, readr.show_progress = FALSE)
@@ -248,7 +248,7 @@ get some warnings.
 
 ```{r using_readr_read_delim}
 df2 <- read_delim(txt_file, locale = locale(encoding = "UTF-16LE"), 
-                 col_names = FALSE, na = "", delim = "\t")
+                  col_names = FALSE, na = "", delim = "\t")
 problems()
 ```
 
@@ -261,7 +261,7 @@ The results are the same, however, so we can silence the warnings.
 
 ```{r compare_results_with_readr_read_delim}
 df2 <- read_delim(txt_file, locale = locale(encoding = "UTF-16LE"), 
-                 col_names = FALSE, na = "", delim = "\t") %>% 
+                  col_names = FALSE, na = "", delim = "\t") %>% 
   suppressWarnings()
 
 df2 <- df2 %>% 
@@ -288,17 +288,51 @@ df3 <- readLines(txt_file, encoding = "UTF-16LE", skipNul = TRUE) %>%
         blank.lines.skip = TRUE)
 ```
 
-And after some additional processing, we get identical results.
+If we have the [iconv](https://en.wikipedia.org/wiki/Iconv) shell utility 
+installed, we can use the `cmd` argument to perform the encoding conversion as 
+`fread()` reads the file.
 
-```{r compare_results_with_data_table_fread}
-df1 <- df %>% as.data.table() %>%
-  mutate(V41 = as.POSIXct(V41, tz = "UTC")) %>% 
-  mutate(across(where(is.character), ~ str_trim(.x)))
-df3 <- df3 %>% 
-  mutate(V41 = as.POSIXct(V41, tz = "UTC")) %>% 
-  mutate(across(where(is.character), ~ str_trim(.x)))
-all.equal(df1, df3)
+```{r using_data_table_fread_cmd, eval = FALSE}
+df4 <- fread(cmd = paste("iconv -f UTF-16LE -t UTF-8", txt_file), sep = "\t", 
+             header = FALSE, na.strings = "")
+all.equal(df3, df4)
 ```
+
+```
+## [1] TRUE
+```
+
+We get identical results with either of these `fread()` approaches.
+
+It would be nicer to use R's `iconv()` function instead of the shell utility, 
+but the `iconv()` function does not support dropping embedded nulls.
+
+As with `read_delim()`, these two `fread` variations are messier than the earlier 
+alternatives, and so it would be difficult to justify using `fread` for this file.
+
+## Using `vroom::vroom()`
+
+The final alternative we will try is `vroom()`. We can use the same arguments 
+as for `read_delim()`.
+
+```{r setup_vroom}
+pacman::p_load(vroom)
+options(vroom.show_col_types = FALSE, vroom.show_progress = FALSE)
+```
+
+```{r, compare_results_using_vroom_vroom}
+df5 <- vroom(txt_file, locale = locale(encoding = "UTF-16LE"), 
+            col_names = FALSE, na = "", delim = "\t")
+
+df5 <- df5 %>% 
+  set_names(str_replace_all(names(.), '^X', 'V')) %>% 
+  mutate(across(where(is.character), ~ str_trim(.x)))
+all.equal(df1, df5)
+```
+
+`vroom()` is [supposed to be faster](https://vroom.r-lib.org/) than any of the 
+previous alternatives we have tried. And it's straightforward to use. So, that's 
+probably the best choice, at least for larger files.
 
 ## Check dimensions
 
