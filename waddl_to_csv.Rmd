@@ -207,7 +207,7 @@ So, now the blank fields have NA instead.
 Alternatively, we can read the file with `read.delim()`. We can also omit 
 `sep = "\t"` when using this function with this file.
 
-```{r read_whole_file_again_with_read_dot_delim}
+```{r using_utils_read_delim}
 # Read file
 df1 <- read.delim(txt_file, header = FALSE, skipNul = TRUE, 
                   fileEncoding = "UTF-16LE", na.strings = "")
@@ -220,16 +220,18 @@ all.equal(df, df1)
 
 We have been using classic "base R" functions from the built-in `utils` package 
 to read the file. We can use the `readr` function `read_tsv()` instead. `readr` 
-is one of the [core tidyverse packages](https://www.tidyverse.org/packages/).
+is one of the [core tidyverse packages](https://www.tidyverse.org/packages/). 
+The "tsv" in the function name stands for [tab separated values](https://en.wikipedia.org/wiki/Tab-separated_values), so we don't 
+need to specify the delimiter.
 
-```{r, read_tsv}
+```{r, using_readr_read_tsv}
 df2 <- read_tsv(txt_file, locale = locale(encoding = "UTF-16LE"), 
                 col_names = FALSE, na = "")
 ```
 
 The results, after some further processing, are identical:
 
-```{r compare_results_with_readr}
+```{r compare_results_with_readr_read_tsv}
 df1 <- df %>% as_tibble() %>% 
   mutate(V41 = as.POSIXct(V41, tz = "UTC")) %>% 
   mutate(across(where(is.character), ~ str_trim(.x)))
@@ -239,10 +241,12 @@ df2 <- df2 %>%
 all.equal(df1, df2)
 ```
 
+## Using `readr::read_delim()`
+
 We can also try `read_delim()`, but we need to specify the delimiter, and we 
 get some warnings. 
 
-```{r read_delim}
+```{r using_readr_read_delim}
 df2 <- read_delim(txt_file, locale = locale(encoding = "UTF-16LE"), 
                  col_names = FALSE, na = "", delim = "\t")
 problems()
@@ -255,7 +259,7 @@ the function does not seem to be smart enough to do that.
 
 The results are the same, however, so we can silence the warnings.
 
-```{r read_delim_2}
+```{r compare_results_with_readr_read_delim}
 df2 <- read_delim(txt_file, locale = locale(encoding = "UTF-16LE"), 
                  col_names = FALSE, na = "", delim = "\t") %>% 
   suppressWarnings()
@@ -277,7 +281,7 @@ to remove the BOM, so we'll do that with `str_remove()`. There are blank lines
 alternating with the data lines, and if we don't remove them, `fread()` will 
 only read the first line. So, we'll use `blank.lines.skip = TRUE` to fix this.
 
-```{r fread}
+```{r using_data_table_fread}
 df3 <- readLines(txt_file, encoding = "UTF-16LE", skipNul = TRUE) %>% 
   str_remove('^\xff\xfe') %>%
   fread(text = ., sep = "\t", header = FALSE, na.strings = "", 
@@ -286,7 +290,7 @@ df3 <- readLines(txt_file, encoding = "UTF-16LE", skipNul = TRUE) %>%
 
 And after some additional processing, we get identical results.
 
-```{r compare_results_with_fread}
+```{r compare_results_with_data_table_fread}
 df1 <- df %>% as.data.table() %>%
   mutate(V41 = as.POSIXct(V41, tz = "UTC")) %>% 
   mutate(across(where(is.character), ~ str_trim(.x)))

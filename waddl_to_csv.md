@@ -338,7 +338,9 @@ all.equal(df, df1)
 
 We have been using classic "base R" functions from the built-in `utils` package 
 to read the file. We can use the `readr` function `read_tsv()` instead. `readr` 
-is one of the [core tidyverse packages](https://www.tidyverse.org/packages/).
+is one of the [core tidyverse packages](https://www.tidyverse.org/packages/). 
+The "tsv" in the function name stands for [tab separated values](https://en.wikipedia.org/wiki/Tab-separated_values), so we don't 
+need to specify the delimiter.
 
 
 ```r
@@ -362,6 +364,8 @@ all.equal(df1, df2)
 ```
 ## [1] TRUE
 ```
+
+## Using `readr::read_delim()`
 
 We can also try `read_delim()`, but we need to specify the delimiter, and we 
 get some warnings. 
