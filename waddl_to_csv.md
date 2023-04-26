@@ -372,29 +372,35 @@ all.equal(df1, df2)
 ## [1] TRUE
 ```
 
+## Using `data.table`
+
 We might also consider using `fread` from the `data.table` package, but it 
-doesn't support UTF-16 encoding. So, we would need to modify the file encoding 
-beforehand as an extra step. We can do this with `readLines()`. However, we 
-find that `fread()` will only read the first line this way. Not sure why.
+doesn't support UTF-16 encoding. So, we need to modify the file encoding 
+beforehand as an extra step. We can do this with `readLines()`.
 
 
 ```r
-txt <- readLines(txt_file, encoding = "UTF-16LE", skipNul = TRUE) %>%
-    str_remove("^\xff\xfe")
-length(txt)
+df3 <- readLines(txt_file, encoding = "UTF-16LE", skipNul = TRUE) %>%
+    str_remove("^\xff\xfe") %>%
+    fread(text = ., sep = "\t", header = FALSE, na.strings = "", blank.lines.skip = TRUE)
 ```
 
-```
-## [1] 40
-```
+And when we further process the results a little, we get identical results.
+
 
 ```r
-df3 <- fread(text = txt, sep = "\t", header = FALSE, na.strings = "")
-nrow(df3)
+df1 <- df %>%
+    as.data.table() %>%
+    mutate(V41 = as.POSIXct(V41, tz = "UTC")) %>%
+    mutate(across(where(is.character), ~str_trim(.x)))
+df3 <- df3 %>%
+    mutate(V41 = as.POSIXct(V41, tz = "UTC")) %>%
+    mutate(across(where(is.character), ~str_trim(.x)))
+all.equal(df1, df3)
 ```
 
 ```
-## [1] 1
+## [1] TRUE
 ```
 
 ## Check dimensions
