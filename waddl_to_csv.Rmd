@@ -223,8 +223,8 @@ all.equal(df1, df2)
 ```
 
 We might also consider using `fread` from the `data.table` package, but it 
-doesn't support UTF-16 encoding. So, again, we would be forced to read the 
-file with something else first. It's hard to justify the extra trouble.
+doesn't support UTF-16 encoding. So, we would need to modify the file encoding 
+beforehand as an extra step.
 
 ## Check dimensions
 
