@@ -208,7 +208,6 @@ And to be consistent with `base`-R, we will change the "X" in the variable names
 to "V".
 
 ```{r, read_tsv}
-# Do the same with readr::read_delim()
 df2 <- read_tsv(txt_file, locale = locale(encoding = "UTF-16LE"), 
                col_names = FALSE, na = "") %>% 
   suppressWarnings() %>% set_names(str_replace_all(names(.), '^X', 'V'))

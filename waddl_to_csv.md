@@ -354,7 +354,6 @@ to "V".
 
 
 ```r
-# Do the same with readr::read_delim()
 df2 <- read_tsv(txt_file, locale = locale(encoding = "UTF-16LE"), col_names = FALSE, na = "") %>%
     suppressWarnings() %>%
     set_names(str_replace_all(names(.), "^X", "V"))
