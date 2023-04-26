@@ -374,16 +374,20 @@ That is, if we test for encoding first, then we can read this file without knowi
 anything about its encoding, embedded nulls, or tab delimiter.
 
 ```{r generic_approach_with_vroom}
-get_locale <- function(file) {
+guess_locale <- function(file, n_max = 10000, threshold = 0.2, ...) {
+  require(readr)
   file_locale <- readr::locale()
-  file_encoding <- readr::guess_encoding(file, n_max = 1)[1, ]$encoding
-  if (!is.na(file_encoding) & is.character(file_encoding) & str_length(file_encoding) > 0) {
-    file_locale <- readr::locale(encoding = file_encoding)
+  file_encoding <- readr::guess_encoding(
+    file, n_max = 1, threshold = threshold)[1, ]$encoding
+  if (!is.na(file_encoding) & 
+      is.character(file_encoding) & 
+      str_length(file_encoding) > 0) {
+    file_locale <- readr::locale(encoding = file_encoding, ...)
   }
   return(file_locale)
 }
 
-df5 <- vroom(txt_file, locale = get_locale(txt_file), col_names = FALSE, 
+df5 <- vroom(txt_file, locale = guess_locale(txt_file), col_names = FALSE, 
              show_col_types = FALSE)
 
 df5 <- df5 %>% 
