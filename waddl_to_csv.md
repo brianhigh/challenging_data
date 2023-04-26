@@ -46,7 +46,7 @@ First, we will load our R packages, set options, and set file paths.
 ```r
 # Attach packages, installing as needed
 if (!requireNamespace("pacman", quietly = TRUE)) install.packages("pacman")
-pacman::p_load(formatR, knitr, dplyr, tidyr, stringr, purrr, readr, data.table)
+pacman::p_load(formatR, knitr, dplyr, tidyr, stringr, purrr, readr)
 
 # Set options
 options(readr.show_col_types = FALSE, readr.show_progress = FALSE)
@@ -430,12 +430,21 @@ Even so, that's still messier than simply using `read_tsv()` with this file.
 
 ## Using `data.table::fread()`
 
-We might also consider using `fread()` from the `data.table` package, but it 
-doesn't support UTF-16 encoding. So, we need to modify the file encoding 
-beforehand with an extra step. We can do this with `readLines()`. We also have 
-to remove the BOM, so we'll do that with `str_remove()`. There are blank lines 
-alternating with the data lines, and if we don't remove them, `fread()` will 
-only read the first line. So, we'll use `blank.lines.skip = TRUE` to fix this.
+We might also consider using `fread()` from the `data.table` package. 
+
+
+```r
+pacman::p_load(data.table)
+```
+
+`fread()` doesn't support UTF-16 encoding, so we need to modify the file 
+encoding beforehand with an extra step. We can do this with `readLines()`. 
+
+We also have to remove the BOM, so we'll do that with `str_remove()`. 
+
+There are blank lines alternating with the data lines, and if we don't 
+remove them, `fread()` will only read the first line. So, we'll use 
+`blank.lines.skip = TRUE` to fix this.
 
 
 ```r
@@ -468,34 +477,21 @@ alternatives, and so it would be difficult to justify using `fread` for this fil
 
 ## Using `vroom::vroom()`
 
-The final alternative we will try is `vroom()`. We can use the same arguments 
-as for `read_delim()`.
+The final alternative we will try is `vroom()`. 
 
 
 ```r
 pacman::p_load(vroom)
-options(vroom.show_col_types = FALSE, vroom.show_progress = FALSE)
 ```
+
+We can use the same arguments as for `read_delim()`, but we will add 
+`show_col_types = FALSE` to silence the chatter.
 
 
 ```r
-df5 <- vroom(txt_file, locale = locale(encoding = "UTF-16LE"), col_names = FALSE, na = "", delim = "\t")
-```
+df5 <- vroom(txt_file, locale = locale(encoding = "UTF-16LE"), col_names = FALSE, na = "", delim = "\t",
+    show_col_types = FALSE)
 
-```
-## Rows: 20 Columns: 341
-## ── Column specification ────────────────────────────────────────────────────────
-## Delimiter: "\t"
-## chr  (138): X3, X7, X10, X11, X12, X23, X42, X43, X44, X45, X46, X47, X48, X...
-## dbl    (7): X1, X2, X8, X14, X19, X20, X40
-## lgl  (195): X4, X5, X6, X9, X13, X15, X16, X17, X18, X21, X22, X24, X25, X26...
-## dttm   (1): X41
-## 
-## ℹ Use `spec()` to retrieve the full column specification for this data.
-## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-```
-
-```r
 df5 <- df5 %>%
     set_names(str_replace_all(names(.), "^X", "V")) %>%
     mutate(across(where(is.character), ~str_trim(.x)))
