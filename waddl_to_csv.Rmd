@@ -344,13 +344,12 @@ The final alternative we will try is `vroom()`.
 pacman::p_load(vroom)
 ```
 
-We can use the same arguments as for `read_delim()`, but we will add 
-`show_col_types = FALSE` to silence the chatter.
+We can use the same arguments as for `read_tsv()`, but we can omit the `na` 
+argument. We will add `show_col_types = FALSE` to silence the chatter.
 
 ```{r, compare_results_using_vroom_vroom}
 df5 <- vroom(txt_file, locale = locale(encoding = "UTF-16LE"), 
-            col_names = FALSE, na = "", delim = "\t", 
-            show_col_types = FALSE)
+            col_names = FALSE, show_col_types = FALSE)
 
 df5 <- df5 %>% 
   set_names(str_replace_all(names(.), '^X', 'V')) %>% 
@@ -358,9 +357,46 @@ df5 <- df5 %>%
 all.equal(df1, df5)
 ```
 
+We are calling `vroom()` with so few arguments, it's interesting that it still 
+gives equivalent results.
+
 `vroom()` is [supposed to be faster](https://vroom.r-lib.org/) than any of the 
 previous alternatives we have tried. And it's straightforward to use. So, that's 
 probably the best choice, at least for larger files.
+
+## Auto-detecting file encoding
+
+If all we did to investigate the file before running any R was to open it in 
+Notepad, and if we only saw that the file appeared to be whitespace delimited and 
+lacked a header line, then we could have used a more generic `vroom()` approach. 
+
+That is, if we test for encoding first, then we can read this file without knowing 
+anything about its encoding, embedded nulls, or tab delimiter.
+
+```{r generic_approach_with_vroom}
+get_locale <- function(file) {
+  file_locale <- readr::locale()
+  file_encoding <- readr::guess_encoding(file, n_max = 1)[1, ]$encoding
+  if (!is.na(file_encoding) & is.character(file_encoding) & str_length(file_encoding) > 0) {
+    file_locale <- readr::locale(encoding = file_encoding)
+  }
+  return(file_locale)
+}
+
+df5 <- vroom(txt_file, locale = get_locale(txt_file), col_names = FALSE, 
+             show_col_types = FALSE)
+
+df5 <- df5 %>% 
+  set_names(str_replace_all(names(.), '^X', 'V')) %>% 
+  mutate(across(where(is.character), ~ str_trim(.x)))
+all.equal(df1, df5)
+```
+
+In other words, if we just made `vroom()` a little smarter, smart enough to guess 
+the encoding by itself, then we could ignore the encoding issue entirely. 
+
+The locale also contains other default values (like Timezone) which may not be 
+appropriate for our file, so we would still want to be aware of those aspects.
 
 ## Check dimensions
 
