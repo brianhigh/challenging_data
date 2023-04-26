@@ -542,6 +542,8 @@ guess_locale <- function(file, n_max = 10000, threshold = 0.2, ...) {
 # Guess encoding and specify Timezone as America/Los_Angeles
 file_tz <- "America/Los_Angeles"
 file_locale <- guess_locale(txt_file, n_max = 1, tz = file_tz)
+
+# Read file
 df5 <- vroom(txt_file, locale = file_locale, col_names = FALSE, show_col_types = FALSE)
 
 # Check results
