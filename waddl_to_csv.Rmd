@@ -199,21 +199,28 @@ df[1:5, 1:50]
 
 So, now the blank fields have NA instead.
 
-## Using `readr::read_delim`
+## Using `readr`
 
 We have been using `base`-R functions to read the file. We could use `readr` 
-functions instead, but they do not handle the embedded nulls. So, you could 
-work around that by processing with `base`-R's `readLines`  and `writeLines` 
-first.
+functions instead. There will be warnings related to the embedded nulls, and 
+there is no feature in `read_tsv()` to skip them, so we will just suppress them. 
+And to be consistent with `base`-R, we will change the "X" in the variable names 
+to "V".
 
-```{r, read_delim_readr, eval = FALSE}
-# Do the same with readr::read_delim(), but after using readLines/writeLines
-# since read_delim can't handle the embedded nulls
-temp <- tempfile()
-readLines(txt_file, encoding = "UTF-16LE", skipNul = TRUE) %>% writeLines(temp)
-df <- read_delim(temp, delim = "\t", col_names = FALSE, na = "", 
-                 name_repair = make.names)
-res <- file.remove(temp)
+```{r, read_tsv}
+# Do the same with readr::read_delim()
+df2 <- read_tsv(txt_file, locale = locale(encoding = "UTF-16LE"), 
+               col_names = FALSE, na = "") %>% 
+  suppressWarnings() %>% set_names(str_replace_all(names(.), '^X', 'V'))
+```
+
+The results, after some further processing, are identical:
+
+```{r compare_results}
+df1 <- df %>% as_tibble() %>% mutate(V41 = as.POSIXct(V41, tz = "UTC")) %>% 
+  mutate(across(where(is.character), ~ str_trim(.x)))
+df2 <- df2 %>% mutate(across(where(is.character), ~ str_trim(.x)))
+all.equal(df1, df2)
 ```
 
 We might also consider using `fread` from the `data.table` package, but it 
@@ -318,7 +325,8 @@ We won't worry about providing column names for the non-drug columns right now.
 ```{r final_cleanup}
 # Clean up data
 df <- df %>% 
-  mutate(across(ends_with('_VAL'), ~ str_replace_all(.x, '\\s+', ' '))) %>%
+  mutate(across(ends_with('_VAL'), 
+                ~ str_trim(str_replace_all(.x, '\\s+', ' ')))) %>%
   rename_with(~ str_remove(., '_VAL')) %>%
   select(-ends_with('_NAME'))
 
