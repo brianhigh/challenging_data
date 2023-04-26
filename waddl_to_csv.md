@@ -46,7 +46,7 @@ First, we will load our R packages, set options, and set file paths.
 ```r
 # Attach packages, installing as needed
 if (!requireNamespace("pacman", quietly = TRUE)) install.packages("pacman")
-pacman::p_load(formatR, knitr, dplyr, tidyr, stringr, purrr, readr)
+pacman::p_load(formatR, knitr, dplyr, tidyr, stringi, stringr, purrr, readr)
 
 # Set options
 options(readr.show_col_types = FALSE, readr.show_progress = FALSE)
@@ -520,12 +520,15 @@ anything about its encoding, embedded nulls, or tab delimiter.
 
 ```r
 guess_locale <- function(file, n_max = 10000, threshold = 0.2, ...) {
-    require(readr)
+    require(stringi, quietly = TRUE)
+    require(readr, quietly = TRUE)
 
+    valid_encodings <- stringi::stri_enc_list(simplify = TRUE)
     file_locale <- readr::locale(...)
     file_encoding <- readr::guess_encoding(file, n_max = 1, threshold = threshold)[1, ]$encoding
 
-    if (!is.na(file_encoding) & is.character(file_encoding) & str_length(file_encoding) > 0) {
+    if (!is.na(file_encoding) & is.character(file_encoding) & str_length(file_encoding) > 0 & file_encoding %in%
+        valid_encodings) {
         file_locale <- readr::locale(encoding = file_encoding, ...)
     }
 
