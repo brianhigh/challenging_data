@@ -538,8 +538,15 @@ guess_locale <- function(file, n_max = 10000, threshold = 0.2, ...) {
     return(file_locale)
 }
 
-df5 <- vroom(txt_file, locale = guess_locale(txt_file, n_max = 1), col_names = FALSE, show_col_types = FALSE)
+# Guess encoding and specify Timezone as America/Los_Angeles
+file_tz <- "America/Los_Angeles"
+file_locale <- guess_locale(txt_file, n_max = 1, tz = file_tz)
+df5 <- vroom(txt_file, locale = file_locale, col_names = FALSE, show_col_types = FALSE)
 
+df1 <- df %>%
+    as_tibble() %>%
+    mutate(V41 = as.POSIXct(V41, tz = file_tz)) %>%
+    mutate(across(where(is.character), ~str_trim(.x)))
 df5 <- df5 %>%
     set_names(str_replace_all(names(.), "^X", "V")) %>%
     mutate(across(where(is.character), ~str_trim(.x)))
@@ -554,7 +561,7 @@ In other words, if we just made `vroom()` a little smarter, smart enough to gues
 the encoding by itself, then we could ignore the encoding issue entirely. 
 
 The locale also contains other default values (like Timezone) which may not be 
-appropriate for our file, so we would still want to be aware of those aspects.
+appropriate for our file, so we would still want to be careful with those aspects.
 
 ## Check dimensions
 
