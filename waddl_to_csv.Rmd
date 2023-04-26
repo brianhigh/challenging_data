@@ -252,6 +252,24 @@ df2 <- read_delim(txt_file, locale = locale(encoding = "UTF-16LE"),
 problems()
 ```
 
+```
+## # A tibble: 5,458 × 5
+##      row   col expected           actual file                              
+##    <int> <int> <chr>              <chr>  <chr>                             
+##  1     1     4 1/0/T/F/TRUE/FALSE ""     /tmp/Rtmp76Hngx/file2d7533523b5ac3
+##  2     1     5 1/0/T/F/TRUE/FALSE ""     /tmp/Rtmp76Hngx/file2d7533523b5ac3
+##  3     1     6 1/0/T/F/TRUE/FALSE ""     /tmp/Rtmp76Hngx/file2d7533523b5ac3
+##  4     1     9 1/0/T/F/TRUE/FALSE ""     /tmp/Rtmp76Hngx/file2d7533523b5ac3
+##  5     1    13 1/0/T/F/TRUE/FALSE ""     /tmp/Rtmp76Hngx/file2d7533523b5ac3
+##  6     1    15 1/0/T/F/TRUE/FALSE ""     /tmp/Rtmp76Hngx/file2d7533523b5ac3
+##  7     1    16 1/0/T/F/TRUE/FALSE ""     /tmp/Rtmp76Hngx/file2d7533523b5ac3
+##  8     1    17 1/0/T/F/TRUE/FALSE ""     /tmp/Rtmp76Hngx/file2d7533523b5ac3
+##  9     1    18 1/0/T/F/TRUE/FALSE ""     /tmp/Rtmp76Hngx/file2d7533523b5ac3
+## 10     1    21 1/0/T/F/TRUE/FALSE ""     /tmp/Rtmp76Hngx/file2d7533523b5ac3
+## # … with 5,448 more rows
+## # ℹ Use `print(n = ...)` to see more rows
+```
+
 We can ignore those warnings, since they just relate to the guessed 
 column types and the NA value of "". If this function were to guess the 
 column types *after* doing the NA conversion, the errors would be avoided, but 
