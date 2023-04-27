@@ -317,9 +317,23 @@ There are blank lines alternating with the data lines, and if we don't
 remove them, `fread()` will only read the first line. So, we'll use 
 `blank.lines.skip = TRUE` to fix this.
 
+First, we will define some helper functions:
+
+```{r define_functions_read_lines_utf26le}
+remove_bom <- function(x) sub('^(?:<[[:xdigit:]]{2}> ?)*', '', x)
+
+remove_blank_lines <- function(x) x[!grepl('^$', x)]
+
+read_lines_utf16le <- function(file) {
+  readLines(file, encoding = "UTF-16LE", skipNul = TRUE) %>% 
+    remove_bom() %>% remove_blank_lines() 
+}
+```
+
+Now we can use these with `fread()` to read the file.
+
 ```{r using_data_table_fread}
-df3 <- readLines(txt_file, encoding = "UTF-16LE", skipNul = TRUE) %>% 
-  gsub('<[[:xdigit:]]{2}>', '', .) %>% .[!grepl('^$', .)] %>% 
+df3 <- read_lines_utf16le(txt_file) %>% 
   fread(text = ., sep = "\t", header = FALSE, na.strings = "")
 
 df1a <- df %>% as.data.frame() %>% 
@@ -566,8 +580,8 @@ And we can "decode" the hexadecimal characters with `rawToChar()`, if we remove
 the nulls first and then remove the hexadecimal bytes with `gsub()`:
 
 ```{r decode}
-paste(rawToChar(x[x!=0], multiple = TRUE), collapse = " ") %>% 
-  gsub('(<(?:[[:xdigit:]]{2})> ?)', '', .)
+remove_bom <- function(x) sub('^(?:<[[:xdigit:]]{2}> ?)*', '', x)
+paste(rawToChar(x[x!=0], multiple = TRUE), collapse = " ") %>% remove_bom()
 ```
 
 In doing so, we are treating each byte (8 bits) as a character and we are 
@@ -580,7 +594,7 @@ UTF-16LE, then we get the same result with:
 
 ```{r two_byte_little_endian_8_chars}
 y <- readBin(txt_file, what = "character", n = 8, size = 2, endian = "little")
-paste(y, collapse = " ") %>% gsub('(<(?:[[:xdigit:]]{2})>)', '', .)
+paste(y, collapse = " ") %>% remove_bom()
 ```
 
 Here we decoded the first 8 characters of our UTF-16LE file the hard way.
@@ -596,15 +610,14 @@ Where we see `00 00` that is an "embedded null" since it is a two-byte NULL and
 our file has 16 bit encoding. Let's decode it as if it had 8-bit characters.
 
 ```{r one_bytes_46_chars_decoded}
-paste(rawToChar(x[x!=0], multiple = TRUE), collapse = " ") %>% 
-  gsub('^(?:(<[[:xdigit:]]{2})> ?){2}', '', .)
+paste(rawToChar(x[x!=0], multiple = TRUE), collapse = " ") %>% remove_bom()
 ```
 
 Now let's decode it as having 16-bit characters.
 
 ```{r two_byte_little_endian_24_chars}
 y <- readBin(txt_file, what = "character", n = 24, size = 2, endian = "little")
-paste(gsub('^$', 'NUL', y), collapse = " ") %>% gsub('(<(?:[[:xdigit:]]{2})>)', '', .)
+paste(gsub('^$', 'NUL', y), collapse = " ") %>% remove_bom()
 ```
 
 We substituted the empty string ("") for `NUL` so these would be visible, 
@@ -655,8 +668,16 @@ values. In those cases, where the function simply cannot handle embedded nulls,
 you can either use a function that does, or remove the nulls beforehand.
 
 ```{r read_with_readLines_before_fread}
-dt <- readLines(txt_file, encoding = "UTF-16LE", skipNul = TRUE) %>% 
-  gsub('<[[:xdigit:]]{2}>', '', .) %>% .[!grepl('^$', .)] %>% 
+remove_bom <- function(x) sub('^(?:<[[:xdigit:]]{2}> ?)*', '', x)
+
+remove_blank_lines <- function(x) x[!grepl('^$', x)]
+
+read_lines_utf16le <- function(file) {
+  readLines(file, encoding = "UTF-16LE", skipNul = TRUE) %>% 
+    remove_bom() %>% remove_blank_lines() 
+}
+
+dt <- read_lines_utf16le(txt_file) %>% 
   fread(text = ., sep = "\t", header = FALSE, na.strings = "")
 dim(dt)
 ```
