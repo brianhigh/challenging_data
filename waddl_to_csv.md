@@ -92,7 +92,8 @@ implies the encoding of this file is "with BOM".
 
 ![BBEdit encoding picklist](images/waddl_example_bbedit_encoding_picklist_screenshot.png)
 
-So, we expect we can read this file into R as "text", because of the file suffix, 
+So, we expect we can read this file into R as "normal" text file, because of the 
+file suffix and the identification of the file type in the text editors, 
 but the NUL characters and atypical file encoding might need special treatment. 
 Normally, we would expect a text file to not have any NUL characters and to be 
 encoded as UTF-8, ANSI (Windows-1252 or CP-1252), ASCII, or Latin-1 
