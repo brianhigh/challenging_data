@@ -464,8 +464,8 @@ rm_bom <- function(x) sub("^(?:<[[:xdigit:]]{2}> ?)*", "", x)
 
 rm_blank <- function(x) x[!grepl("^$", x)]
 
-rl_utf16le <- function(file) {
-    rm_blank(rm_bom(readLines(file, encoding = "UTF-16LE", skipNul = TRUE)))
+rl_enc <- function(file, encoding = "UTF-16LE", ...) {
+    rm_blank(rm_bom(readLines(file, encoding = encoding, skipNul = TRUE, ...)))
 }
 ```
 
@@ -473,7 +473,7 @@ Now we can use these with `fread()` to read the file.
 
 
 ```r
-df3 <- fread(text = rl_utf16le(txt_file), sep = "\t", header = FALSE, na.strings = "")
+df3 <- fread(text = rl_enc(txt_file), sep = "\t", header = FALSE, na.strings = "")
 
 df1a <- df %>%
     as.data.frame() %>%
@@ -964,12 +964,11 @@ rm_bom <- function(x) sub("^(?:<[[:xdigit:]]{2}> ?)*", "", x)
 
 rm_blank <- function(x) x[!grepl("^$", x)]
 
-rl_utf16le <- function(file) {
-    rm_blank(rm_bom(readLines(file, encoding = "UTF-16LE", skipNul = TRUE)))
+rl_enc <- function(file, encoding = "UTF-16LE", ...) {
+    rm_blank(rm_bom(readLines(file, encoding = encoding, skipNul = TRUE, ...)))
 }
 
-dt <- rl_utf16le(txt_file) %>%
-    fread(text = ., sep = "\t", header = FALSE, na.strings = "")
+dt <- fread(text = rl_enc(txt_file), sep = "\t", header = FALSE, na.strings = "")
 dim(dt)
 ```
 
