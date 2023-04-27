@@ -459,6 +459,21 @@ remove them, `fread()` will only read the first line. So, we'll use
 df3 <- readLines(txt_file, encoding = "UTF-16LE", skipNul = TRUE) %>%
     str_remove("^\xff\xfe") %>%
     fread(text = ., sep = "\t", header = FALSE, na.strings = "", blank.lines.skip = TRUE)
+
+df1a <- df %>%
+    as.data.frame() %>%
+    mutate(V41 = as.POSIXct(V41, tz = "UTC")) %>%
+    mutate(across(where(is.character), ~str_trim(.x)))
+df3a <- df3 %>%
+    as.data.frame() %>%
+    mutate(V41 = as.POSIXct(V41, tz = "UTC")) %>%
+    set_names(str_replace_all(names(.), "^X", "V")) %>%
+    mutate(across(where(is.character), ~str_trim(.x)))
+all.equal(df1a, df3a)
+```
+
+```
+## [1] TRUE
 ```
 
 If we have the [iconv](https://en.wikipedia.org/wiki/Iconv) shell utility 
