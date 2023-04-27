@@ -71,10 +71,13 @@ but will not show much when opened in R's text editor. In Notepad++ we turned on
 View -> Show Symbol -> Show All Characters. We see it has no column headers, 
 is tab delimited (shown as arrows), contains NUL characters, and the lines end 
 with CR LF (carriage-return line-feed), the standard text file line ending 
-characters used on Windows systems. In Notepad++, from the Encoding menu, we 
-see "UTF-16 LE BOM". 
+characters used on Windows systems. 
 
-![Opened in Notepad++](images/waddl_example_notepad_pp_Screenshot.png)
+![Open in Notepad++](images/waddl_example_notepad_pp_screenshot.png)
+
+In Notepad++, from the Encoding menu, we see "UTF-16 LE BOM". 
+
+![Notepad++ encoding picklist](images/waddl_example_notepad_pp_encoding_picklist_screenshot.png)
 
 Opening the file on a Mac with [BBEdit](https://www.barebones.com/products/bbedit/), 
 we selected View -> Text Display -> Show Invisibles. This shows the tabs as grey 
