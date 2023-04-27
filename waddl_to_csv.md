@@ -460,14 +460,12 @@ First, we will define some helper functions:
 
 
 ```r
-remove_bom <- function(x) sub("^(?:<[[:xdigit:]]{2}> ?)*", "", x)
+rm_bom <- function(x) sub("^(?:<[[:xdigit:]]{2}> ?)*", "", x)
 
-remove_blank_lines <- function(x) x[!grepl("^$", x)]
+rm_blank <- function(x) x[!grepl("^$", x)]
 
-read_lines_utf16le <- function(file) {
-    readLines(file, encoding = "UTF-16LE", skipNul = TRUE) %>%
-        remove_bom() %>%
-        remove_blank_lines()
+rl_utf16le <- function(file) {
+    rm_blank(rm_bom(readLines(file, encoding = "UTF-16LE", skipNul = TRUE)))
 }
 ```
 
@@ -475,8 +473,7 @@ Now we can use these with `fread()` to read the file.
 
 
 ```r
-df3 <- read_lines_utf16le(txt_file) %>%
-    fread(text = ., sep = "\t", header = FALSE, na.strings = "")
+df3 <- fread(text = rl_utf16le(txt_file), sep = "\t", header = FALSE, na.strings = "")
 
 df1a <- df %>%
     as.data.frame() %>%
@@ -824,9 +821,9 @@ the nulls first and then remove the hexadecimal bytes with `gsub()`:
 
 
 ```r
-remove_bom <- function(x) sub("^(?:<[[:xdigit:]]{2}> ?)*", "", x)
+rm_bom <- function(x) sub("^(?:<[[:xdigit:]]{2}> ?)*", "", x)
 paste(rawToChar(x[x != 0], multiple = TRUE), collapse = " ") %>%
-    remove_bom()
+    rm_bom()
 ```
 
 ```
@@ -845,7 +842,7 @@ UTF-16LE, then we get the same result with:
 ```r
 y <- readBin(txt_file, what = "character", n = 8, size = 2, endian = "little")
 paste(y, collapse = " ") %>%
-    remove_bom()
+    rm_bom()
 ```
 
 ```
@@ -873,7 +870,7 @@ our file has 16 bit encoding. Let's decode it as if it had 8-bit characters.
 
 ```r
 paste(rawToChar(x[x != 0], multiple = TRUE), collapse = " ") %>%
-    remove_bom()
+    rm_bom()
 ```
 
 ```
@@ -886,7 +883,7 @@ Now let's decode it as having 16-bit characters.
 ```r
 y <- readBin(txt_file, what = "character", n = 24, size = 2, endian = "little")
 paste(gsub("^$", "NUL", y), collapse = " ") %>%
-    remove_bom()
+    rm_bom()
 ```
 
 ```
@@ -962,17 +959,15 @@ you can either use a function that does, or remove the nulls beforehand.
 
 
 ```r
-remove_bom <- function(x) sub("^(?:<[[:xdigit:]]{2}> ?)*", "", x)
+rm_bom <- function(x) sub("^(?:<[[:xdigit:]]{2}> ?)*", "", x)
 
-remove_blank_lines <- function(x) x[!grepl("^$", x)]
+rm_blank <- function(x) x[!grepl("^$", x)]
 
-read_lines_utf16le <- function(file) {
-    readLines(file, encoding = "UTF-16LE", skipNul = TRUE) %>%
-        remove_bom() %>%
-        remove_blank_lines()
+rl_utf16le <- function(file) {
+    rm_blank(rm_bom(readLines(file, encoding = "UTF-16LE", skipNul = TRUE)))
 }
 
-dt <- read_lines_utf16le(txt_file) %>%
+dt <- rl_utf16le(txt_file) %>%
     fread(text = ., sep = "\t", header = FALSE, na.strings = "")
 dim(dt)
 ```
