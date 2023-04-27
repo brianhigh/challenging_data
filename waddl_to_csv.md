@@ -35,8 +35,7 @@ We will explore how to address the issues that come up when reading this file:
 For the curious, we also provide more details in three appendices:
 
 - Appendix I: What's an "embedded null"?
-- Appendix II: Good nulls and bad nulls
-- Appendix III: What's UTF-16LE?
+- Appendix II: What's UTF-16LE?
 
 ## Setup
 
@@ -878,8 +877,6 @@ We substituted the empty string ("") for `NUL` so these would be visible,
 since the NULs were decoded as "". Each two-byte NUL was actually `0000000000000000` 
 (16 zeros) in the file, but we are showing them as `NUL NUL`.
 
-## Appendix II: Good nulls and bad nulls
-
 It turns out we actually need to "skip" the embedded nulls (`\x00\x00`), or we 
 will just read a few values.
 
@@ -894,32 +891,10 @@ read.table(txt_file, nrows = 1, fileEncoding = "UTF-16LE") %>%
 ## 1  1 99050 2099-0707
 ```
 
-The reason is that we actually do have real embedded nulls after the third "cell".
+The reason is that we actually do have real embedded nulls as we just demonstrated.
 
-
-```r
-readBin(txt_file, what = "raw", n = 24)
-```
-
-```
-##  [1] ff fe 31 00 09 00 39 00 39 00 30 00 35 00 30 00 09 00 32 00 30 00 39 00
-```
-
-```r
-paste(gsub("^$", "NUL", y), collapse = " ") %>%
-    gsub("(<(?:[[:xdigit:]]{2})>)", "", .)
-```
-
-```
-## [1] "1 \t 9 9 0 5 0 \t 2 0 9 9 - 0 7 0 7 \t NUL NUL \t NUL NUL \t"
-```
-
-You can see that between some tabs (`\t` or `09 00`) we have NUL (`00 00`) values. 
-These are embedded nulls because there are two of them together, so 16 bits of 
-zeros (`0000000000000000`).
-
-These may be intended to be the `NA` values of this file format. Since we don't 
-have column headings, or any code book at all, we can't be sure, but if the tab 
+These nulls may be intended as `NA` values for this file format. Since we don't 
+have a code book or file format description, we can't be sure, but if the tab 
 is actually the delimiter, then this is how the empty "cells" are presented in 
 this file. So, maybe we can try setting the null as a NA value:
 
@@ -932,15 +907,17 @@ try(read.table(txt_file, nrows = 1, fileEncoding = "UTF-16LE", na.strings = "\x0
 Error: nul character not allowed (line 1)
 ```
 
-Unfortunately we are not allowed to enter nulls here. So, we just skip them. 
+Unfortunately we are not allowed to enter nulls here. So, we have to skip them. 
 That will leave the empty cells truly empty ("") and so we use the empty 
-string as the NA string with `na.strings = ""`. 
+string as the NA string with `na.strings = ""`. Unfortunately, some of the 
+file reading functions do not support skipping nulls and just give errors when 
+it encounters these values.
 
 At least now we have a better idea of what embedded nulls are, why 
 they're there (probably), and why it's (probably) okay to skip them, at least in 
 this situation.
 
-## Appendix III: What's UTF-16LE?
+## Appendix II: What's UTF-16LE?
 
 UTF-16 is a file encoding for 16-bit (2-byte) Unicode characters. We suspected we 
 had an UTF-16LE file because of the two special bytes starting the file. These 
@@ -955,7 +932,7 @@ was UTF-8, it would either not have a BOM or the BOM would be `EF BB BF`.
 
 Because UTF-8 is represented with single bytes, there is no big or little "end". 
 [Endianness](https://en.wikipedia.org/wiki/Endianness) is to specify byte order, 
-so you need more than one byte per character to have a byte order. So, the 
+so you need more than one byte per character to have a byte order. The 
 difference between "LE" and "BE" are just the order of the two bytes in each 
 multibyte character. We can see the difference with an example that compares the 
 bytes of LE and BE representing the character "1":
@@ -979,3 +956,7 @@ kable(t(c(x = x, `UTF-8` = x8, `UTF-16LE` = x16LE, `UTF-16BE` = x16BE)))
 Those `00` values look like the dreaded "embedded nulls", right? But now we see 
 those are valid after all. They are simply one of the two bytes of some UTF-16 
 characters. That's why the warning said, *appears* to contain embedded nulls. 
+
+Unfortunately, some file reading functions do not support UTF-16LE encoding. To 
+use those functions with UTF-16LE files, you have to convert the format beforehand.
+
