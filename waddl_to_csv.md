@@ -608,8 +608,15 @@ appropriate for our file, so we would still want to be careful with those aspect
 
 ## Check dimensions
 
+Okay, after exploring various ways to read the file, let's move on to cleaning 
+up the data. First, we'll check the dimensions to get an idea of the side of the 
+dataset.
+
 
 ```r
+# Read file
+df <- read.table(txt_file, sep = "\t", header = FALSE, skipNul = TRUE, fileEncoding = "UTF-16LE", na.strings = "")
+
 # Check dimensions
 dim(df)
 ```
@@ -659,16 +666,33 @@ df[1:5, 1:20]
 ## 5 2099-06-05 08:22:22 AMIKAC <=       4   SUSC AMOCLA  =       4  SUSC
 ```
 
+195 columns have been removed.
+
 ## Remove rows with no drug data
 
-By inspection, we see the drug data (name, quantity, etc.) starts at column V42. 
-Some rows do not have any data from that column onward, so we will remove those 
-rows, as we don't need them.
+By inspection, we see that column V42 is the first column with an abbreviated 
+antimicrobal drug name ([AMIKAC](https://www.ncbi.nlm.nih.gov/books/NBK430908/)) in it.
 
 
 ```r
-# Find the numerical index of column V42 to use for subsetting
-drug_start <- grep("V42", names(df))
+drug_start_colname <- names(df)[unlist(map(df, ~"AMIKAC" %in% unique(.)))]
+drug_start_colname
+```
+
+```
+## [1] "V42"
+```
+
+By inspection, it appears there are sets of three columns for each drug name 
+from this column onward. But some rows have no data in these columns. We will 
+remove those rows, as we don't need them.
+
+Let's find the index of this first drug column to help us with filtering.
+
+
+```r
+# Find the numerical index of column V42 to use for filtering
+drug_start <- grep(drug_start_colname, names(df))
 drug_start
 ```
 
@@ -676,11 +700,19 @@ drug_start
 ## [1] 15
 ```
 
+Now we can filter out those rows with only NAs in the drug columns.
+
+
 ```r
 # Remove rows containing no drug data, e.g., where columns V42 onward are all NA
 df <- df %>%
     filter(!if_all(all_of(drug_start:ncol(df)), ~is.na(.)))
+```
 
+Now let's check the dataframe dimensions again to see if there are fewer rows.
+
+
+```r
 # Check dimensions
 dim(df)
 ```
@@ -688,6 +720,8 @@ dim(df)
 ```
 ## [1]  18 146
 ```
+
+We see that 2 rows have been removed.
 
 ## Examine structure of drug data
 
