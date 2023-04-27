@@ -35,8 +35,8 @@ We will explore how to address the issues that come up when reading this file:
 For the curious, we also provide more details in three appendices:
 
 - Appendix I: What's an "embedded null"?
-- Appendix II: What's UTF-16LE?
-- Appendix III: Good nulls and bad nulls
+- Appendix II: Good nulls and bad nulls
+- Appendix III: What's UTF-16LE?
 
 ## Setup
 
@@ -785,74 +785,102 @@ write_csv(df, csv_file)
 
 ## Appendix I: What's an "embedded null"?
 
-A "embedded null" is a non-printing character (NUL) that is sometimes used to 
-terminate a character string. You can see them using `readBin()`. This will 
-show the hexadecimal equivalents of the characters. The nulls are the 00 values.
+A "null" ([NUL](https://en.wikipedia.org/wiki/Null_character)) is a non-printing
+character that is used in some languages to terminate a character string. In 
+modern character sets a NUL is encoded as 0. You can see them using `readBin()`. 
+This will show the [hexadecimal](https://en.wikipedia.org/wiki/Hexadecimal) 
+equivalents of the characters. The nulls are the 00 values.
 
 
 ```r
-x <- readBin(txt_file, what = "raw", n = 16)
+x <- readBin(txt_file, what = "raw", n = 18)
 x
 ```
 
 ```
-##  [1] ff fe 31 00 09 00 39 00 39 00 30 00 35 00 30 00
+##  [1] ff fe 31 00 09 00 39 00 39 00 30 00 35 00 30 00 09 00
 ```
 
 And we can "decode" the hexadecimal characters with `rawToChar()`, if we remove
-the nulls first:
+the nulls first and then remove the hexadecimal bytes with `gsub()`:
 
 
 ```r
-paste(rawToChar(x[x != 0], multiple = TRUE), collapse = " ")
+paste(rawToChar(x[x != 0], multiple = TRUE), collapse = " ") %>%
+    gsub("(<(?:[[:xdigit:]]{2})> ?)", "", .)
 ```
 
 ```
-## [1] "\xff \xfe 1 \t 9 9 0 5 0"
+## [1] "1 \t 9 9 0 5 0 \t"
 ```
 
-## Appendix II: What's UTF-16LE?
+In doing so, we are treating each byte (8 bits) as a character and we are 
+skipping the nulls (and "BOM"). But some files are encoded such that a character 
+is two or more bytes, such as UTF-16LE. 
 
-UTF-16 is a file encoding for 16-bit (2-byte) Unicode characters. We suspected we 
-had an UTF-16LE file because of the two special bytes starting the file. These 
-particular bytes, `FF FE` specify that the encoding is "little endian" (LE), giving us 
-UTF-16LE encoding. 
-
-- See: https://en.wikipedia.org/wiki/Endianness
-- And: https://www.tutorialspoint.com/big-endian-and-little-endian
-
-If we had a UTF-32LE file, it would have started with `FF FE 00 00`. If the file 
-was UTF-8, it would either not have a BOM or the BOM would be `EF BB BF`. 
-
-Because UTF-8 is represented with single bytes, there is no big or little "end". 
-Endianness is to specify byte order, so you need more than one byte per character to 
-have a byte order. So, the difference between "LE" and "BE" are just the order 
-of the two bytes in each multibyte character. We can see the difference with 
-an example that compares the bytes of LE and BE representing the character "1":
+For example, if we assume each character is 2 bytes (16 bits), and we assume 
+that the first byte is the "most significant" (aka, "little endian"), like 
+UTF-16LE, then we get the same result with:
 
 
 ```r
-x <- "1"
-Encoding(x) <- "UTF-8"
-x8 <- charToRaw(x)
-x16LE <- iconv(x, "UTF-8", "UTF-16LE", toRaw = TRUE)
-x16BE <- iconv(x, "UTF-8", "UTF-16BE", toRaw = TRUE)
-kable(t(c(x = x, `UTF-8` = x8, `UTF-16LE` = x16LE, `UTF-16BE` = x16BE)))
+y <- readBin(txt_file, what = "character", n = 8, size = 2, endian = "little")
+paste(y, collapse = " ") %>%
+    gsub("(<(?:[[:xdigit:]]{2})>)", "", .)
 ```
 
+```
+## [1] "1 \t 9 9 0 5 0 \t"
+```
+
+Here we decoded the first 8 characters of our UTF-16LE file the hard way.
+
+But what about an "embedded null"?
 
 
-|x  |UTF-8        |UTF-16LE              |UTF-16BE              |
-|:--|:------------|:---------------------|:---------------------|
-|1  |as.raw(0x31) |as.raw(c(0x31, 0x00)) |as.raw(c(0x00, 0x31)) |
+```r
+x <- readBin(txt_file, what = "raw", n = 46)
+x
+```
 
-Those `00` values look like the dreaded "embedded nulls", right? But now we see 
-those are valid after all. They are simply one of the two bytes of some UTF-16 
-characters. That's why the warning said, *appears* to contain embedded nulls. 
+```
+##  [1] ff fe 31 00 09 00 39 00 39 00 30 00 35 00 30 00 09 00 32 00 30 00 39 00 39
+## [26] 00 2d 00 30 00 37 00 30 00 37 00 09 00 00 00 09 00 00 00 09 00
+```
 
-## Appendix III: Good nulls and bad nulls
+Where we see `00 00` that is an "embedded null" since it is a two-byte NULL and
+our file has 16 bit encoding. Let's decode it as if it had 8-bit characters.
 
-It turns out we actually need to "skip" the embedded nulls (`0x00 0x00`), or we 
+
+```r
+paste(rawToChar(x[x != 0], multiple = TRUE), collapse = " ") %>%
+    gsub("(<(?:[[:xdigit:]]{2})> ?)", "", .)
+```
+
+```
+## [1] "1 \t 9 9 0 5 0 \t 2 0 9 9 - 0 7 0 7 \t \t \t"
+```
+
+Now let's decode it as having 16-bit characters.
+
+
+```r
+y <- readBin(txt_file, what = "character", n = 24, size = 2, endian = "little")
+paste(gsub("^$", "NUL", y), collapse = " ") %>%
+    gsub("(<(?:[[:xdigit:]]{2})>)", "", .)
+```
+
+```
+## [1] "1 \t 9 9 0 5 0 \t 2 0 9 9 - 0 7 0 7 \t NUL NUL \t NUL NUL \t"
+```
+
+We substituted the empty string ("") for `NUL` so these would be visible, 
+since the NULs were decoded as "". Each two-byte NUL was actually `0000000000000000` 
+(16 zeros) in the file, but we are showing them as `NUL NUL`.
+
+## Appendix II: Good nulls and bad nulls
+
+It turns out we actually need to "skip" the embedded nulls (`\x00\x00`), or we 
 will just read a few values.
 
 
@@ -870,21 +898,27 @@ The reason is that we actually do have real embedded nulls after the third "cell
 
 
 ```r
-readBin(txt_file, what = "raw", n = 100)
+readBin(txt_file, what = "raw", n = 24)
 ```
 
 ```
-##   [1] ff fe 31 00 09 00 39 00 39 00 30 00 35 00 30 00 09 00 32 00 30 00 39 00 39
-##  [26] 00 2d 00 30 00 37 00 30 00 37 00 09 00 00 00 09 00 00 00 09 00 00 00 09 00
-##  [51] 32 00 30 00 39 00 39 00 2d 00 30 00 37 00 30 00 37 00 2e 00 32 00 09 00 32
-##  [76] 00 09 00 00 00 09 00 53 00 2e 00 41 00 55 00 52 00 09 00 41 00 4e 00 59 00
+##  [1] ff fe 31 00 09 00 39 00 39 00 30 00 35 00 30 00 09 00 32 00 30 00 39 00
 ```
 
-You can see that between some tabs (`\t` or `09 00`) we have `00 00` values. These
-are the real embedded nulls because there are two of them together, so 16 bits of 
-zeros.
+```r
+paste(gsub("^$", "NUL", y), collapse = " ") %>%
+    gsub("(<(?:[[:xdigit:]]{2})>)", "", .)
+```
 
-I'm guessing these are the actual `NA` values of this file format. Since we don't 
+```
+## [1] "1 \t 9 9 0 5 0 \t 2 0 9 9 - 0 7 0 7 \t NUL NUL \t NUL NUL \t"
+```
+
+You can see that between some tabs (`\t` or `09 00`) we have NUL (`00 00`) values. 
+These are embedded nulls because there are two of them together, so 16 bits of 
+zeros (`0000000000000000`).
+
+These may be intended to be the `NA` values of this file format. Since we don't 
 have column headings, or any code book at all, we can't be sure, but if the tab 
 is actually the delimiter, then this is how the empty "cells" are presented in 
 this file. So, maybe we can try setting the null as a NA value:
@@ -905,3 +939,43 @@ string as the NA string with `na.strings = ""`.
 At least now we have a better idea of what embedded nulls are, why 
 they're there (probably), and why it's (probably) okay to skip them, at least in 
 this situation.
+
+## Appendix III: What's UTF-16LE?
+
+UTF-16 is a file encoding for 16-bit (2-byte) Unicode characters. We suspected we 
+had an UTF-16LE file because of the two special bytes starting the file. These 
+particular bytes, `FF FE` specify that the encoding is "little endian" (LE), 
+giving us UTF-16LE encoding. 
+
+- See: https://en.wikipedia.org/wiki/Endianness
+- And: https://www.tutorialspoint.com/big-endian-and-little-endian
+
+If we had a UTF-32LE file, it would have started with `FF FE 00 00`. If the file 
+was UTF-8, it would either not have a BOM or the BOM would be `EF BB BF`. 
+
+Because UTF-8 is represented with single bytes, there is no big or little "end". 
+[Endianness](https://en.wikipedia.org/wiki/Endianness) is to specify byte order, 
+so you need more than one byte per character to have a byte order. So, the 
+difference between "LE" and "BE" are just the order of the two bytes in each 
+multibyte character. We can see the difference with an example that compares the 
+bytes of LE and BE representing the character "1":
+
+
+```r
+x <- "1"
+Encoding(x) <- "UTF-8"
+x8 <- charToRaw(x)
+x16LE <- iconv(x, "UTF-8", "UTF-16LE", toRaw = TRUE)
+x16BE <- iconv(x, "UTF-8", "UTF-16BE", toRaw = TRUE)
+kable(t(c(x = x, `UTF-8` = x8, `UTF-16LE` = x16LE, `UTF-16BE` = x16BE)))
+```
+
+
+
+|x  |UTF-8        |UTF-16LE              |UTF-16BE              |
+|:--|:------------|:---------------------|:---------------------|
+|1  |as.raw(0x31) |as.raw(c(0x31, 0x00)) |as.raw(c(0x00, 0x31)) |
+
+Those `00` values look like the dreaded "embedded nulls", right? But now we see 
+those are valid after all. They are simply one of the two bytes of some UTF-16 
+characters. That's why the warning said, *appears* to contain embedded nulls. 
