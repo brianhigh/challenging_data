@@ -459,8 +459,9 @@ remove them, `fread()` will only read the first line. So, we'll use
 
 ```r
 df3 <- readLines(txt_file, encoding = "UTF-16LE", skipNul = TRUE) %>%
-    str_remove("^\xff\xfe") %>%
-    fread(text = ., sep = "\t", header = FALSE, na.strings = "", blank.lines.skip = TRUE)
+    gsub("<[[:xdigit:]]{2}>", "", .) %>%
+    .[!grepl("^$", .)] %>%
+    fread(text = ., sep = "\t", header = FALSE, na.strings = "")
 
 df1a <- df %>%
     as.data.frame() %>%
@@ -856,7 +857,7 @@ our file has 16 bit encoding. Let's decode it as if it had 8-bit characters.
 
 ```r
 paste(rawToChar(x[x != 0], multiple = TRUE), collapse = " ") %>%
-    gsub("(<(?:[[:xdigit:]]{2})> ?)", "", .)
+    gsub("^(?:(<[[:xdigit:]]{2})> ?){2}", "", .)
 ```
 
 ```
@@ -894,7 +895,18 @@ read.table(txt_file, nrows = 1, fileEncoding = "UTF-16LE") %>%
 ## 1  1 99050 2099-0707
 ```
 
-The reason is that we actually do have real embedded nulls as we just demonstrated.
+The reason is that we actually do have real embedded nulls and these need to be 
+properly handled. Sometimes the file reading stops when a null is encountered, 
+as in the example above. Or you may be able to read any data at all:
+
+
+```r
+read_lines(txt_file, locale = locale(encoding = "UTF-16LE"))
+```
+
+```
+## character(0)
+```
 
 These nulls may be intended as `NA` values for this file format. Since we don't 
 have a code book or file format description, we can't be sure, but if the tab 
@@ -911,10 +923,39 @@ Error: nul character not allowed (line 1)
 ```
 
 Unfortunately we are not allowed to enter nulls here. So, we have to skip them. 
-That will leave the empty cells truly empty ("") and so we use the empty 
-string as the NA string with `na.strings = ""`. Unfortunately, some of the 
-file reading functions do not support skipping nulls and just give errors when 
-it encounters these values.
+
+
+```r
+df_one_row <- read.delim(txt_file, nrows = 1, fileEncoding = "UTF-16LE", skipNul = TRUE)
+num_na_cols <- map(df_one_row, ~sum(is.na(.))) %>%
+    unlist() %>%
+    sum()
+num_na_cols
+```
+
+```
+## [1] 327
+```
+
+Of the 341 columns read in, 327 columns contained an NA.
+
+Unfortunately, some of the file reading functions do not support skipping 
+nulls and just give warnings, errors or no results when it encounters these 
+values. In those cases, where the function simply cannot handle embedded nulls, 
+you can either use a function that does, or remove the nulls beforehand.
+
+
+```r
+dt <- readLines(txt_file, encoding = "UTF-16LE", skipNul = TRUE) %>%
+    gsub("<[[:xdigit:]]{2}>", "", .) %>%
+    .[!grepl("^$", .)] %>%
+    fread(text = ., sep = "\t", header = FALSE, na.strings = "")
+dim(dt)
+```
+
+```
+## [1]  20 341
+```
 
 At least now we have a better idea of what embedded nulls are, why 
 they're there (probably), and why it's (probably) okay to skip them, at least in 
@@ -961,5 +1002,6 @@ those are valid after all. They are simply one of the two bytes of some UTF-16
 characters. That's why the warning said, *appears* to contain embedded nulls. 
 
 Unfortunately, some file reading functions do not support UTF-16LE encoding. To 
-use those functions with UTF-16LE files, you have to convert the format beforehand.
+use those functions with UTF-16LE files, you have to convert the format 
+beforehand, as we did in Appendix I with `readLines()` before using `fread()`.
 
