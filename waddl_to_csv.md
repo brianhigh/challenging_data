@@ -75,15 +75,22 @@ with CR LF (carriage-return line-feed), the standard text file line ending
 characters used on Windows systems. In Notepad++, from the Encoding menu, we 
 see "UTF-16 LE BOM". 
 
+![Opened in Notepad++](images/waddl_example_notepad_pp_Screenshot.png)
+
 Opening the file on a Mac with [BBEdit](https://www.barebones.com/products/bbedit/), 
 we selected View -> Text Display -> Show Invisibles. This shows the tabs as grey 
 triangles and upside-down red question marks where there are no data values 
 (empty fields). Maybe that is the symbol for NULs. At the bottom in the status 
 bar, it says "Text File", "Unicode (UTF-16 Little-Endian)" and "Windows (CRLF)". 
 So, that's the same file encoding as Notepad++ reported, but without the "BOM". 
+
+![Opened in BBEdit](images/waddl_example_bbedit_screenshot.png)
+
 If you select the file encoding shown in the status bar of BBEdit, you see that 
 there is another choice for "Unicode (UTF-16 Little-Endian, no BOM)", so that 
 implies the encoding of this file is "with BOM".
+
+![BBEdit encoding picklist](images/waddl_example_bbedit_encoding_picklist_screenshot.png)
 
 So, we expect we can read this file into R as "text", because of the file suffix, 
 but the NUL characters and atypical file encoding might need special treatment. 
