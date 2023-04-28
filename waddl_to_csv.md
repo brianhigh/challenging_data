@@ -464,16 +464,19 @@ rm_bom <- function(x) sub("^(?:<[[:xdigit:]]{2}> ?)*", "", x)
 
 rm_blank <- function(x) x[!grepl("^$", x)]
 
-rl_enc <- function(file, encoding = "UTF-16LE", ...) {
-    rm_blank(rm_bom(readLines(file, encoding = encoding, skipNul = TRUE, ...)))
+rl <- function(file, skipNul = TRUE, ...) {
+    rm_blank(rm_bom(readLines(file, skipNul = skipNul, ...)))
 }
 ```
 
-Now we can use these with `fread()` to read the file.
+Now we can use these functions with `fread()` to read the file. We'll make use of 
+`readr::guess_encoding()` to show how generalizable this approach can be.
 
 
 ```r
-df3 <- fread(text = rl_enc(txt_file), sep = "\t", header = FALSE, na.strings = "")
+enc <- readr::guess_encoding(txt_file, n_max = 1)[1, ]$encoding
+df3 <- rl(txt_file, encoding = enc) %>%
+    fread(text = ., sep = "\t", header = FALSE, na.strings = "")
 
 df1a <- df %>%
     as.data.frame() %>%
@@ -998,11 +1001,13 @@ rm_bom <- function(x) sub("^(?:<[[:xdigit:]]{2}> ?)*", "", x)
 
 rm_blank <- function(x) x[!grepl("^$", x)]
 
-rl_enc <- function(file, encoding = "UTF-16LE", ...) {
-    rm_blank(rm_bom(readLines(file, encoding = encoding, skipNul = TRUE, ...)))
+rl <- function(file, skipNul = TRUE, ...) {
+    rm_blank(rm_bom(readLines(file, skipNul = skipNul, ...)))
 }
 
-dt <- fread(text = rl_enc(txt_file), sep = "\t", header = FALSE, na.strings = "")
+enc <- readr::guess_encoding(txt_file, n_max = 1)[1, ]$encoding
+dt <- rl(txt_file, encoding = enc) %>%
+    fread(text = ., sep = "\t", header = FALSE, na.strings = "")
 dim(dt)
 ```
 
