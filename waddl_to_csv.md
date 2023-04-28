@@ -686,11 +686,12 @@ appropriate for our file, so we would still want to be careful with those aspect
 
 ## Data cleanup
 
+Okay, after exploring various ways to read the file, let's move on to cleaning 
+up the data. 
+
 ### Check dimensions
 
-Okay, after exploring various ways to read the file, let's move on to cleaning 
-up the data. First, we'll check the dimensions to get an idea of the size of the 
-dataset.
+First, we'll check the dimensions to get an idea of the size of the dataset.
 
 
 ```r
@@ -865,8 +866,26 @@ table(unlist(map(col_vals, ~grepl("^[A-Z]+$", names(.x)[1]))))
 ```
 
 ```r
-# Extract the drug names and column number
+# Extract the drug names
 drugs <- sapply(col_vals, names)
+
+# Use alternative (pattern match) method to find drug names (as a check)
+drugs2 <- unlist(map(df[drug_start:ncol(df)], ~sort(unique(.)))) %>%
+    str_extract("^[A-Z]{4,6}$") %>%
+    .[!is.na(.)] %>%
+    unique() %>%
+    .[!. %in% c("INTER", "SUSC", "RESIST", "NOINTP")]  # Exclude RIS qualifiers
+
+# Compare two vectors of drug names for set equality
+setequal(drugs, drugs2)
+```
+
+```
+## [1] TRUE
+```
+
+```r
+# Extract the drug column numbers
 drug_nums <- as.numeric(gsub("^V", "", drug_cols))
 
 # Rename drug columns in sets of 3 columns for each drug: name, value, and RIS
