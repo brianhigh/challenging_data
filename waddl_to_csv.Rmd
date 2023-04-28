@@ -804,7 +804,8 @@ those are valid after all. They are simply one of the two bytes of some UTF-16
 characters. That's why the warning said, *appears* to contain embedded nulls. 
 
 As discussed in Appendix I, the real embedded nulls are the two-byte NUL sequences 
-`00 00` (or `0x00 0x00`) which are apparently used in this file as `NA` values.
+`00 00` (or `0x00 0x00` or `NUL NUL` when decoded) which are apparently used in 
+this file as `NA` values.
 
 Encoded:
 
