@@ -500,7 +500,8 @@ installed, we can use the `cmd` argument to perform the encoding conversion as
 
 
 ```r
-df4 <- fread(cmd = paste("iconv -f UTF-16LE -t UTF-8", txt_file), sep = "\t", header = FALSE, na.strings = "")
+enc <- readr::guess_encoding(txt_file, n_max = 1)[1, ]$encoding
+df4 <- fread(cmd = paste("iconv -f", enc, "-t UTF-8", txt_file), sep = "\t", header = FALSE, na.strings = "")
 all.equal(df3, df4)
 ```
 
@@ -526,11 +527,13 @@ pacman::p_load(vroom)
 ```
 
 We can use the same arguments as for `read_tsv()`, but we can omit the `na` 
-argument. We will add `show_col_types = FALSE` to silence the chatter.
+argument. We will add `show_col_types = FALSE` to silence the chatter. We will 
+also use `readr::guess_encoding()` again, as we did previously.
 
 
 ```r
-df5 <- vroom(txt_file, locale = locale(encoding = "UTF-16LE"), col_names = FALSE, show_col_types = FALSE)
+enc <- readr::guess_encoding(txt_file, n_max = 1)[1, ]$encoding
+df5 <- vroom(txt_file, locale = locale(encoding = enc), col_names = FALSE, show_col_types = FALSE)
 
 df5 <- df5 %>%
     set_names(str_replace_all(names(.), "^X", "V")) %>%
@@ -549,14 +552,21 @@ gives equivalent results.
 previous alternatives we have tried. And it's straightforward to use. So, that's 
 probably the best choice, at least for larger files.
 
-## Auto-detecting file encoding
+## Better file encoding auto-detection
 
 If all we did to investigate the file before running any R was to open it in 
 Notepad, and if we only saw that the file appeared to be whitespace delimited and 
 lacked a header line, then we could have used a more generic `vroom()` approach. 
 
 That is, if we test for encoding first, then we can read this file without knowing 
-anything about its encoding, embedded nulls, or tab delimiter.
+anything about its encoding, embedded nulls, or tab delimiter. But the previous 
+method of using `readr::guess_encoding()` was a little too fragile. It assumed 
+that that function would succeed in guessing correctly. 
+
+We can make the process more robust by adding a validation and fallback 
+procedure in the event that the guessed result is invalid. Using the method 
+below, the system default file encoding will be used if `readr::guess_encoding()` 
+fails.
 
 
 ```r
@@ -580,7 +590,13 @@ guess_locale <- function(file, n_max = 10000, threshold = 0.2, ...) {
 
     return(file_locale)
 }
+```
 
+We will use this function and supply it with an alternative Timezone to show its 
+flexibility in customizing the `locale`.
+
+
+```r
 # Guess encoding and specify Timezone as America/Los_Angeles
 file_tz <- "America/Los_Angeles"
 file_locale <- guess_locale(txt_file, n_max = 1, tz = file_tz)
@@ -604,9 +620,12 @@ all.equal(df1, df5)
 ```
 
 In other words, if we just made `vroom()` a little smarter, smart enough to guess 
-the encoding by itself, then we could ignore the encoding issue entirely. 
+the encoding by itself, and to recover if the guessing fails, then we could 
+probably ignore the encoding issue in most cases. That is, a person using this 
+method would probably do just fine if they knew nothing about file encoding, 
+BOMs, or embedded nulls.
 
-The locale also contains other default values (like Timezone) which may not be 
+The `locale` also contains other default values (like Timezone) which may not be 
 appropriate for our file, so we would still want to be careful with those aspects.
 
 ## Check dimensions
