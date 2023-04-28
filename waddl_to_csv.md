@@ -5,13 +5,15 @@ date: "2023-04-24"
 output:
   html_document:
     keep_md: yes
+    toc: true
+    toc_depth: 2
 editor_options: 
   chunk_output_type: console
 ---
 
 
 
-## Read WADDL file and convert to CSV
+# Read WADDL file and convert to CSV
 
 We will use an example "text" data file, a modified subset of a file we were told 
 came from the [Washington Animal Disease Diagnostic Laboratory](https://waddl.vetmed.wsu.edu/) (WADDL). We were asked to read the file into R, but we were not told anything 
@@ -107,7 +109,9 @@ We could convert the file format in either Notepad++ or BBedit to UTF-8 (or conv
 with a shell utility like `iconv`) and make our lives a little easier, but we 
 will try to do all processing in R for better automation and reproducibility.
 
-## Embedded nulls
+## Reading the file
+
+### Embedded nulls
 
 We will start with `read.table()`, specifying a tab delimiter and no header, 
 and reading in just the first line. When we read it in we get some unexpected 
@@ -146,7 +150,7 @@ try(read.table(txt_file, sep = "\t", header = FALSE, nrows = 1, skipNul = TRUE))
 
 However, we still see the "invalid multibyte string" error.
 
-## Invalid multibyte strings
+### Invalid multibyte strings
 
 The "invalid multibyte string" error is a clue that the file is not encoded as 
 expected (usually UTF-8, ANSI, or ASCII), so we check this with `guess_encoding()`.
@@ -246,7 +250,7 @@ read.table(txt_file, sep = "\t", header = FALSE, nrows = 1, skipNul = TRUE, file
 ## #   V48 <lgl>, V49 <lgl>, V50 <lgl>, V51 <lgl>, V52 <lgl>, V53 <lgl>, …
 ```
 
-## Read the whole file
+### Read the whole file
 
 We get no errors when we try to read all of the rows.
 
@@ -352,7 +356,9 @@ df[1:5, 1:50]
 
 So, now the blank fields have NA instead.
 
-## Using `utils::read.delim()`
+## Alternative methods
+
+### Using `utils::read.delim()`
 
 Alternatively, we can read the file with `read.delim()`. We can also omit 
 `sep = "\t"` when using this function with this file.
@@ -370,7 +376,7 @@ all.equal(df, df1)
 ## [1] TRUE
 ```
 
-## Using `readr::read_tsv()`
+### Using `readr::read_tsv()`
 
 We have been using classic "base R" functions from the built-in `utils` package 
 to read the file. We can use the `readr` function `read_tsv()` instead. `readr` 
@@ -401,7 +407,7 @@ all.equal(df1, df2)
 ## [1] TRUE
 ```
 
-## Using `readr::read_delim()`
+### Using `readr::read_delim()`
 
 We can also try `read_delim()`, but we need to specify the delimiter, and we 
 get some warnings. 
@@ -464,7 +470,7 @@ all.equal(df1, df2)
 
 Even so, that's still messier than simply using `read_tsv()` with this file. 
 
-## Using `data.table::fread()`
+### Using `data.table::fread()`
 
 We might also consider using `fread()` from the `data.table` package. 
 
@@ -544,7 +550,7 @@ but the `iconv()` function does not support dropping embedded nulls.
 As with `read_delim()`, these two `fread` variations are messier than the earlier 
 alternatives, and so it would be difficult to justify using `fread` for this file.
 
-## Using `vroom::vroom()`
+### Using `vroom::vroom()`
 
 The final alternative we will try is `vroom()`. 
 
@@ -579,7 +585,7 @@ gives equivalent results.
 previous alternatives we have tried. And it's straightforward to use. So, that's 
 probably the best choice, at least for larger files.
 
-## Better file encoding auto-detection
+### Better file encoding auto-detection
 
 If all we did to investigate the file before running any R was to open it in 
 Notepad, and if we only saw that the file appeared to be whitespace delimited and 
@@ -655,7 +661,9 @@ BOMs, or embedded nulls.
 The `locale` also contains other default values (like Timezone) which may not be 
 appropriate for our file, so we would still want to be careful with those aspects.
 
-## Check dimensions
+## Data cleanup
+
+### Check dimensions
 
 Okay, after exploring various ways to read the file, let's move on to cleaning 
 up the data. First, we'll check the dimensions to get an idea of the size of the 
@@ -676,7 +684,7 @@ dim(df)
 
 That's a lot of columns! Maybe more than we need...
 
-# Remove columns with no data
+### Remove columns with no data
 
 When we looked at the lines, we saw lots of empty values, so let's try to 
 remove columns that contain no data, as they are just taking up space.
@@ -717,7 +725,7 @@ df[1:5, 1:20]
 
 195 columns have been removed.
 
-## Remove rows with no drug data
+### Remove rows with no drug data
 
 By inspection, we see that column V42 is the first column with an abbreviated 
 antimicrobal drug name ([AMIKAC](https://www.ncbi.nlm.nih.gov/books/NBK430908/)) in it.
@@ -772,7 +780,9 @@ dim(df)
 
 We see that 2 rows have been removed.
 
-## Examine structure of drug data
+## Reshaping
+
+### Examine structure of drug data
 
 When we look at the columns of drug data, we see a strange structure.
 
@@ -797,7 +807,7 @@ df %>%
 By inspection, we see columns containing drug data are in sets of 3:
 drug_name drug_quantity drug_qualifier, example: "AMIKAC" " <= 16" "NOINTP".
 
-## Reshape drug columns
+### Reshape drug columns
 
 We would prefer a structure where there were two colums per drug: one for the 
 quantity and the other for the qualifier, which we will call "RIS". We want 
@@ -847,7 +857,7 @@ lookup <- with(drugs_df, c(col1_old, col2_old, col3_old) %>%
 df <- rename(df, any_of(lookup))
 ```
 
-## Final cleanup
+## Final steps
 
 Now, all we need to do is remove extra spaces from the value columns, abbreviate 
 the names of the drug value columns, and remove the original drug name columns. 
@@ -899,6 +909,8 @@ x
 ```
 ##  [1] ff fe 31 00 09 00 39 00 39 00 30 00 35 00 30 00 09 00
 ```
+
+### Decoding as 8-bit characaters
 
 And we can "decode" the hexadecimal characters with `rawToChar()`, if we remove
 the nulls first and then remove the hexadecimal bytes with `gsub()`:
@@ -961,6 +973,8 @@ paste(rawToChar(x[x != 0], multiple = TRUE), collapse = " ") %>%
 ## [1] "1 \t 9 9 0 5 0 \t 2 0 9 9 - 0 7 0 7 \t \t \t"
 ```
 
+### Decoding as 16-bit characaters
+
 Now let's decode it as having 16-bit characters.
 
 
@@ -1004,6 +1018,8 @@ read_lines(txt_file, locale = locale(encoding = "UTF-16LE"))
 ```
 ## character(0)
 ```
+
+### Handling nulls
 
 These nulls may be intended as `NA` values for this file format. Since we don't 
 have a code book or file format description, we can't be sure, but if the tab 
