@@ -831,12 +831,13 @@ df %>%
 By inspection, we see columns containing drug data are in sets of 3:
 drug_name drug_quantity drug_qualifier, example: "AMIKAC" " <= 16" "NOINTP".
 
-### Reshape drug columns
+### Locate drug columns
 
-We would prefer a structure where there were two colums per drug: one for the 
-quantity and the other for the qualifier, which we will call "RIS". We want 
-the two colums to be named after the drug, which is contained in the first 
-of the three columns for each set. So, we will extract these first.
+Before reshaping, we will first identify the drug columns, extract the drug 
+names, check they match a pattern, and extract the column numbers. By inspection, 
+it appeared all drug names (abbreviations) were composed of only 4-6 capitalized 
+letters and that each drug column only contained one of these names. We will 
+confirm this.
 
 
 ```r
@@ -856,7 +857,7 @@ table(unlist(map(col_vals, length)))
 ```
 
 ```r
-table(unlist(map(col_vals, ~grepl("^[A-Z]+$", names(.x)[1]))))
+table(unlist(map(col_vals, ~grepl("^[A-Z]{4,6}$", names(.x)[1]))))
 ```
 
 ```
@@ -869,12 +870,28 @@ table(unlist(map(col_vals, ~grepl("^[A-Z]+$", names(.x)[1]))))
 # Extract the drug names
 drugs <- sapply(col_vals, names)
 
+# Extract the drug column numbers
+drug_nums <- as.numeric(gsub("^V", "", drug_cols))
+```
+
+### Confirm drug columns
+
+Run some checks to confirm that the drug, value, and qualifier (RIS) columns 
+have been identified correctly. Each will be check by regular expression or 
+against items in a list of known correct values. The list of known correct values 
+for the qualifier (RIS) column was made from the unique values in a few RIS 
+columns identified by inspection. This confirmation will check that this list 
+is complete.
+
+
+```r
 # Use alternative (pattern match) method to find drug names (as a check)
+RIS_vals <- c("INTER", "SUSC", "RESIST", "NOINTP")  # RIS qualifiers
 drugs2 <- unlist(map(df[drug_start:ncol(df)], ~sort(unique(.)))) %>%
     str_extract("^[A-Z]{4,6}$") %>%
     .[!is.na(.)] %>%
     unique() %>%
-    .[!. %in% c("INTER", "SUSC", "RESIST", "NOINTP")]  # Exclude RIS qualifiers
+    .[!. %in% RIS_vals]  # Exclude RIS qualifiers
 
 # Compare two vectors of drug names for set equality
 setequal(drugs, drugs2)
@@ -885,9 +902,41 @@ setequal(drugs, drugs2)
 ```
 
 ```r
-# Extract the drug column numbers
-drug_nums <- as.numeric(gsub("^V", "", drug_cols))
+# Check drug value columns: count of values not matching regular expression equals 0
+drug_val_regex <- "^\\s*[<=>]+\\s+[0-9.]+$"
+drug_val_cols <- names(df)[drug_start:ncol(df)][(drug_start - 1):ncol(df)%%3 == 0]
+map(df[, drug_val_cols], ~sum(!str_detect(.x[!is.na(.x)], drug_val_regex))) %>%
+    unlist() %>%
+    sum() == 0
+```
 
+```
+## [1] TRUE
+```
+
+```r
+# Check drug RIS columns: count of values not in vector of expected values equals 0
+drug_RIS_cols <- names(df)[drug_start:ncol(df)][(drug_start + 1):ncol(df)%%3 == 0]
+map(df[, drug_RIS_cols], ~sum(!.x[!is.na(.x)] %in% RIS_vals)) %>%
+    unlist() %>%
+    sum() == 0
+```
+
+```
+## [1] TRUE
+```
+
+Three `TRUE` values means all of the checks passed.
+
+### Reshape drug columns
+
+We would prefer a structure where there were two colums per drug: one for the 
+quantity and the other for the qualifier, which we will call "RIS". We want 
+the two colums to be named after the drug, which is contained in the first 
+of the three columns for each set. So, we will extract these first.
+
+
+```r
 # Rename drug columns in sets of 3 columns for each drug: name, value, and RIS
 drugs_df <- tibble(drug = drugs, drug_num = drug_nums) %>%
     mutate(col1_old = paste0("V", drug_nums), col2_old = paste0("V", drug_nums + 1), col3_old = paste0("V",

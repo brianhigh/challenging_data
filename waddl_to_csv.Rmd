@@ -606,6 +606,62 @@ df %>% select(V42:V50) %>% head()
 By inspection, we see columns containing drug data are in sets of 3:
 drug_name drug_quantity drug_qualifier, example: "AMIKAC" " <= 16" "NOINTP".
 
+### Locate drug columns
+
+Before reshaping, we will first identify the drug columns, extract the drug 
+names, check they match a pattern, and extract the column numbers. By inspection, 
+it appeared all drug names (abbreviations) were composed of only 4-6 capitalized 
+letters and that each drug column only contained one of these names. We will 
+confirm this.
+
+```{r locate_drug_columns}
+# Identify columns containing only a single abbreviated drug name (or NA)
+drug_cols <- names(df)[drug_start:ncol(df)][drug_start:ncol(df) %% 3 == 0]
+col_vals <- map(drug_cols, ~ table(df[, .x])) %>% setNames(drug_cols)
+
+# Confirm all of these variables only contain 1 value matching name pattern
+table(unlist(map(col_vals, length)))
+table(unlist(map(col_vals, ~ grepl('^[A-Z]{4,6}$', names(.x)[1]))))
+
+# Extract the drug names
+drugs <- sapply(col_vals, names)
+
+# Extract the drug column numbers
+drug_nums <- as.numeric(gsub('^V', '', drug_cols))
+```
+
+### Confirm drug columns
+
+Run some checks to confirm that the drug, value, and qualifier (RIS) columns 
+have been identified correctly. Each will be check by regular expression or 
+against items in a list of known correct values. The list of known correct values 
+for the qualifier (RIS) column was made from the unique values in a few RIS 
+columns identified by inspection. This confirmation will check that this list 
+is complete.
+
+```{r validate_drug_columns}
+# Use alternative (pattern match) method to find drug names (as a check)
+RIS_vals <- c("INTER", "SUSC", "RESIST", "NOINTP")     # RIS qualifiers
+drugs2 <- unlist(map(df[drug_start:ncol(df)], ~ sort(unique(.)))) %>% 
+  str_extract('^[A-Z]{4,6}$') %>% .[!is.na(.)] %>% unique() %>% 
+  .[! . %in% RIS_vals]   # Exclude RIS qualifiers
+
+# Compare two vectors of drug names for set equality
+setequal(drugs, drugs2)
+
+# Check drug value columns: count of values not matching regular expression equals 0
+drug_val_regex <- '^\\s*[<=>]+\\s+[0-9.]+$'
+drug_val_cols <- names(df)[drug_start:ncol(df)][(drug_start-1):ncol(df) %% 3 == 0]
+map(df[, drug_val_cols], ~ sum(!str_detect(.x[!is.na(.x)], drug_val_regex))) %>% 
+  unlist() %>% sum() == 0
+
+# Check drug RIS columns: count of values not in vector of expected values equals 0
+drug_RIS_cols <- names(df)[drug_start:ncol(df)][(drug_start+1):ncol(df) %% 3 == 0]
+map(df[, drug_RIS_cols], ~ sum(! .x[!is.na(.x)] %in% RIS_vals)) %>% unlist() %>% sum() == 0
+```
+
+Three `TRUE` values means all of the checks passed.
+
 ### Reshape drug columns
 
 We would prefer a structure where there were two colums per drug: one for the 
@@ -613,29 +669,7 @@ quantity and the other for the qualifier, which we will call "RIS". We want
 the two colums to be named after the drug, which is contained in the first 
 of the three columns for each set. So, we will extract these first.
 
-```{r rename_columns}
-# Identify columns containing only a single abbreviated drug name (or NA)
-drug_cols <- names(df)[drug_start:ncol(df)][drug_start:ncol(df) %% 3 == 0]
-col_vals <- map(drug_cols, ~ table(df[, .x])) %>% setNames(drug_cols)
-
-# Confirm all of these variables only contain 1 value matching name pattern
-table(unlist(map(col_vals, length)))
-table(unlist(map(col_vals, ~ grepl('^[A-Z]+$', names(.x)[1]))))
-
-# Extract the drug names
-drugs <- sapply(col_vals, names)
-
-# Use alternative (pattern match) method to find drug names (as a check)
-drugs2 <- unlist(map(df[drug_start:ncol(df)], ~ sort(unique(.)))) %>% 
-  str_extract('^[A-Z]{4,6}$') %>% .[!is.na(.)] %>% unique() %>% 
-  .[! . %in% c("INTER", "SUSC", "RESIST", "NOINTP")]   # Exclude RIS qualifiers
-
-# Compare two vectors of drug names for set equality
-setequal(drugs, drugs2)
-
-# Extract the drug column numbers
-drug_nums <- as.numeric(gsub('^V', '', drug_cols))
-
+```{r reshape_drug_columns}
 # Rename drug columns in sets of 3 columns for each drug: name, value, and RIS
 drugs_df <- tibble(drug = drugs, drug_num = drug_nums) %>%
   mutate(col1_old = paste0('V', drug_nums),
