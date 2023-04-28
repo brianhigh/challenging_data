@@ -1120,8 +1120,19 @@ kable(t(c(x = x, `UTF-8` = x8, `UTF-16LE` = x16LE, `UTF-16BE` = x16BE)))
 Those `00` values look like the dreaded "embedded nulls", right? But now we see 
 those are valid after all. They are simply one of the two bytes of some UTF-16 
 characters. That's why the warning said, *appears* to contain embedded nulls. 
+
 As discussed in Appendix I, the real embedded nulls are the two-byte NUL sequences 
-`\x00\x00` which are apparently used in this file as a `NA` values.
+`00 00` which are apparently used in this file as `NA` values.
+
+
+```r
+readBin(txt_file, what = "raw", n = 50)
+```
+
+```
+##  [1] ff fe 31 00 09 00 39 00 39 00 30 00 35 00 30 00 09 00 32 00 30 00 39 00 39
+## [26] 00 2d 00 30 00 37 00 30 00 37 00 09 00 00 00 09 00 00 00 09 00 00 00 09 00
+```
 
 Unfortunately, some file reading functions do not support UTF-16LE encoding. To 
 use those functions with UTF-16LE files, you have to convert the format 
