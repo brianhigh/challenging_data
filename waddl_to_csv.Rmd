@@ -804,10 +804,20 @@ those are valid after all. They are simply one of the two bytes of some UTF-16
 characters. That's why the warning said, *appears* to contain embedded nulls. 
 
 As discussed in Appendix I, the real embedded nulls are the two-byte NUL sequences 
-`00 00` which are apparently used in this file as `NA` values.
+`00 00` (or `0x00 0x00`) which are apparently used in this file as `NA` values.
+
+Encoded:
 
 ```{r raw_50_chars}
 readBin(txt_file, what = "raw", n = 50)
+```
+
+Decoded:
+
+```{r raw_16le_27_chars}
+readBin(txt_file, what = "character", n = 27, size = 2, endian = "little") %>% 
+  gsub('<([[:xdigit:]]{2})>', '0x\\1 ', .) %>% gsub("^$", "0x00", .) %>% 
+  paste(collapse = " ")
 ```
 
 Unfortunately, some file reading functions do not support UTF-16LE encoding. To 

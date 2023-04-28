@@ -1122,7 +1122,9 @@ those are valid after all. They are simply one of the two bytes of some UTF-16
 characters. That's why the warning said, *appears* to contain embedded nulls. 
 
 As discussed in Appendix I, the real embedded nulls are the two-byte NUL sequences 
-`00 00` which are apparently used in this file as `NA` values.
+`00 00` (or `0x00 0x00`) which are apparently used in this file as `NA` values.
+
+Encoded:
 
 
 ```r
@@ -1132,6 +1134,20 @@ readBin(txt_file, what = "raw", n = 50)
 ```
 ##  [1] ff fe 31 00 09 00 39 00 39 00 30 00 35 00 30 00 09 00 32 00 30 00 39 00 39
 ## [26] 00 2d 00 30 00 37 00 30 00 37 00 09 00 00 00 09 00 00 00 09 00 00 00 09 00
+```
+
+Decoded:
+
+
+```r
+readBin(txt_file, what = "character", n = 27, size = 2, endian = "little") %>%
+    gsub("<([[:xdigit:]]{2})>", "0x\\1 ", .) %>%
+    gsub("^$", "0x00", .) %>%
+    paste(collapse = " ")
+```
+
+```
+## [1] "0xff 0xfe 1 \t 9 9 0 5 0 \t 2 0 9 9 - 0 7 0 7 \t 0x00 0x00 \t 0x00 0x00 \t 0x00 0x00 \t"
 ```
 
 Unfortunately, some file reading functions do not support UTF-16LE encoding. To 
