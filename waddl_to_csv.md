@@ -68,6 +68,8 @@ work with this instrument called the Thermo Scientific™ Sensititre™ SWIN™ 
 System. We do not have this software, nor could we find a manual for it available 
 online.
 
+### Open in Notepad++
+
 The file can be opened in Notepad and [Notepad++](https://notepad-plus-plus.org/), 
 but will not show much when opened in R's text editor. In Notepad++ we turned on 
 View -> Show Symbol -> Show All Characters. We see it has no column headers, 
@@ -80,6 +82,8 @@ characters used on Windows systems.
 In Notepad++, from the Encoding menu, we see "UTF-16 LE BOM". 
 
 ![Notepad++ encoding picklist](images/waddl_example_notepad_pp_encoding_picklist_screenshot.png)
+
+### Open in BBEDit
 
 Opening the file on a Mac with [BBEdit](https://www.barebones.com/products/bbedit/), 
 we selected View -> Text Display -> Show Invisibles. This shows the tabs as grey 
@@ -96,6 +100,8 @@ implies the encoding of this file is "with BOM".
 
 ![BBEdit encoding picklist](images/waddl_example_bbedit_encoding_picklist_screenshot.png)
 
+### Observations
+
 So, we expect we can read this file into R as "normal" text file, because of the 
 file suffix and the identification of the file type in the text editors, 
 but the NUL characters and atypical file encoding might need special treatment. 
@@ -111,11 +117,9 @@ will try to do all processing in R for better automation and reproducibility.
 
 ## Reading the file
 
-### Embedded nulls
-
 We will start with `read.table()`, specifying a tab delimiter and no header, 
-and reading in just the first line. When we read it in we get some unexpected 
-messages.
+and reading in just the first line.
+
 
 
 ```r
@@ -133,9 +137,15 @@ try(read.table(txt_file, sep = "\t", header = FALSE, nrows = 1))
 ##   invalid multibyte string at '<ff><fe>1'
 ```
 
-We get a warning "appears to contain embedded nulls". We saw NUL characters in 
+When we read it in we get some warning and error messages.
+
+### Warning: Embedded nulls
+
+We get the warning, "appears to contain embedded nulls". We saw NUL characters in 
 Notepad++, and red upside-down question marks in BBEdit for empty fields, so 
-perhaps that's what this is about. The warning will go away if we use `skipNul = TRUE`.
+perhaps that's what this is about. 
+
+The warning will go away if we use `skipNul = TRUE`.
 
 
 ```r
@@ -150,7 +160,7 @@ try(read.table(txt_file, sep = "\t", header = FALSE, nrows = 1, skipNul = TRUE))
 
 However, we still see the "invalid multibyte string" error.
 
-### Invalid multibyte strings
+### Error: Invalid multibyte strings
 
 The "invalid multibyte string" error is a clue that the file is not encoded as 
 expected (usually UTF-8, ANSI, or ASCII), so we check this with `guess_encoding()`.
@@ -173,10 +183,14 @@ readr::guess_encoding(txt_file, n_max = 1)
 
 And the guesses are listed with the most likely encoding, "UTF-16LE", at the the 
 top of the list with a probability of 1. Notepad++ showed the same encoding, 
-but added "BOM". We can verify that encoding by checking the first four bytes 
-of the file for the "byte order mark" (BOM). For UTF-16, we would expect a 
-two-byte BOM, so checking the next two bytes after that will also let us see the 
-first two-byte character of data.
+but added "BOM". 
+
+### Verify UTF-16LE encoding
+
+We can verify that encoding by checking the first four bytes of the file for 
+the "byte order mark" (BOM). For UTF-16, we would expect a two-byte BOM, so 
+checking the next two bytes after that will also let us see the first two-byte 
+character of data.
 
 
 ```r
@@ -227,6 +241,8 @@ These four bytes (`ff fe 31 00`) confirm UTF-16LE with BOM encoding for this fil
 The BOM is the source of the "invalid multibyte string" error because `read.table()` 
 does not know this file is encoded as UTF-16LE with BOM. 
 
+### Set fileEncoding 
+
 When we set `fileEncoding = "UTF-16LE"`, reading the first line, there are no 
 errors. We do not have to specify "BOM", and the BOM will be removed automatically.
 
@@ -260,7 +276,7 @@ We get no errors when we try to read all of the rows.
 df <- read.table(txt_file, sep = "\t", header = FALSE, skipNul = TRUE, fileEncoding = "UTF-16LE")
 ```
 
-Yay! Let's take a look...
+### Examine the dataset
 
 
 ```r
@@ -315,6 +331,8 @@ unique(df$V42)
 ## [1] ""       "AMIKAC"
 ```
 
+### Set NA strings
+
 The blank fields are really the empty string (""). We will read the file again 
 setting `na.strings = ""`.
 
@@ -356,7 +374,10 @@ df[1:5, 1:50]
 
 So, now the blank fields have NA instead.
 
-## Alternative methods
+## Alternative file reading methods
+
+While `read.table()` works, there are a number of other choices which may 
+offer benefits. We will try a few and compare the results.
 
 ### Using `utils::read.delim()`
 
@@ -526,6 +547,8 @@ all.equal(df1a, df3a)
 ```
 ## [1] TRUE
 ```
+
+### Using `data.table::fread()` with `iconv`
 
 If we have the [iconv](https://en.wikipedia.org/wiki/Iconv) shell utility 
 installed, we can use the `cmd` argument to perform the encoding conversion as 
