@@ -186,10 +186,36 @@ readBin(txt_file, what = "raw", n = 4)
 
 This shows four pairs of symbols. Each pair represents the hexadecimal values 
 for a byte (8 bits). With a 16-bit encoding, each character in the file is 
-represented by 2 bytes. The first two bytes are `ff fe`, which is the "BOM" 
-associated with UTF-16LE encoding. The next two bytes are `31 00`, which 
-represents the character "1" in UTF-16LE. "1" is the first character of data 
-in this file. These four bytes confirm UTF-16LE with BOM encoding for this file.
+represented by 2 bytes. 
+
+Here's how we can read the first character of data in a file encoded like this:
+
+
+```r
+readBin(txt_file, what = "character", n = 1, size = 2, endian = "little") %>%
+    sub("^(?:<[[:xdigit:]]{2}> ?)*", "", .)  # Remove the BOM
+```
+
+```
+## [1] "1"
+```
+
+The first two bytes are `ff fe`, which is the "BOM" associated with UTF-16LE 
+encoding. The next two bytes are `31 00`, which represents the character "1" 
+in UTF-16LE. "1" is the first character of data in this file.
+
+Here's how "1" will encode with UTF-16LE:
+
+
+```r
+unlist(iconv("1", "UTF-8", "UTF-16LE", toRaw = TRUE))
+```
+
+```
+## [1] 31 00
+```
+
+These four bytes (`ff fe 31 00`) confirm UTF-16LE with BOM encoding for this file.
 
 - See: https://www.unicode.org/faq/utf_bom.html#bom4
 - And: https://en.wikipedia.org/wiki/Byte_order_mark#UTF-16
@@ -460,6 +486,7 @@ First, we will define some helper functions:
 
 
 ```r
+# See: ?base::regex
 rm_bom <- function(x) sub("^(?:<[[:xdigit:]]{2}> ?)*", "", x)
 
 rm_blank <- function(x) x[!grepl("^$", x)]
