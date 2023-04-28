@@ -631,7 +631,7 @@ appropriate for our file, so we would still want to be careful with those aspect
 ## Check dimensions
 
 Okay, after exploring various ways to read the file, let's move on to cleaning 
-up the data. First, we'll check the dimensions to get an idea of the side of the 
+up the data. First, we'll check the dimensions to get an idea of the size of the 
 dataset.
 
 
