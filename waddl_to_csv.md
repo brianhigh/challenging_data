@@ -874,6 +874,81 @@ drugs <- sapply(col_vals, names)
 drug_nums <- as.numeric(gsub("^V", "", drug_cols))
 ```
 
+These are the antimicrobial drug names (abbreviations) found:
+
+
+```r
+sort(as.character(drugs))
+```
+
+```
+##  [1] "AMIKAC" "AMOCLA" "AMPICI" "AZITHR" "CEFAZO" "CEFOVE" "CEFPOD" "CEFTAZ"
+##  [9] "CEFTIF" "CEPALE" "CEPHAL" "CHLORA" "CHLTET" "CLARYT" "CLINDA" "DANOFL"
+## [17] "DOXYCY" "ENROFL" "ERYTH"  "FLORFE" "GENTAM" "IMIPEN" "MARBOF" "MINOCY"
+## [25] "NEOMYC" "NITRO"  "ORBIFL" "OXACIL" "OXYTET" "PENICI" "PIPTAZ" "PRADOF"
+## [33] "RIFAMP" "SDIMET" "SPECT"  "TETRA"  "TIAMUL" "TICARC" "TICCLA" "TILMIC"
+## [41] "TRISUL" "TULATH" "TYLO"   "VANCOM"
+```
+
+In comparing these abbreviated names with those used in the 
+[Sensititre Plate Guide](https://assets.thermofisher.com/TFS-Assets/MBD/brochures/Sensititre-Plate-Guide-Booklet-EN.pdf) 
+and some online searching, we came up with this *unverified* translation table:
+
+
+```r
+read_csv(file.path("data", "drug_names_lookup.csv")) %>%
+    knitr::kable()
+```
+
+
+
+|Antimicrobics                 |Abbrev |
+|:-----------------------------|:------|
+|Amikacin                      |AMIKAC |
+|Amoxicillin / Clavulanic acid |AMOCLA |
+|Ampicillin                    |AMPICI |
+|Azithromycin                  |AZITHR |
+|Cefazolin                     |CEFAZO |
+|Cefovecin                     |CEFOVE |
+|Cefopodoxime                  |CEFPOD |
+|Ceftazidime                   |CEFTAZ |
+|Ceftiofur                     |CEFTIF |
+|Cephalexin                    |CEPALE |
+|Cephalothin                   |CEPHAL |
+|Chloramphenicol               |CHLORA |
+|Chlortetracycline             |CHLTET |
+|Clarithromycin                |CLARYT |
+|Clindamycin                   |CLINDA |
+|Danofloxacin                  |DANOFL |
+|Doxycycline                   |DOXYCY |
+|Enrofloxacin                  |ENROFL |
+|Erythromycin                  |ERYTH  |
+|Florfenicol                   |FLORFE |
+|Gentamicin                    |GENTAM |
+|Imipenem                      |IMIPEN |
+|Marbofloxacin                 |MARBOF |
+|Minocycline                   |MINOCY |
+|Neomycin                      |NEOMYC |
+|Nitrofurantoin                |NITRO  |
+|Orbifloxacin                  |ORBIFL |
+|Oxacillin                     |OXACIL |
+|Oxytetracycline               |OXYTET |
+|Penicillin                    |PENICI |
+|Piperacillin / Tazobactam     |PIPTAZ |
+|Pradofloxacin                 |PRADOF |
+|Rifampin                      |RIFAMP |
+|Sulphadimethoxine             |SDIMET |
+|Spectinomycin                 |SPECT  |
+|Tetracycline                  |TETRA  |
+|Tiamulin                      |TIAMUL |
+|Ticarcillin                   |TICARC |
+|Ticarcillin / Clavulanic acid |TICCLA |
+|Tilmicosin                    |TILMIC |
+|Trimethoprim / Sulfamethoxaz  |TRISUL |
+|Tulathromycin                 |TULATH |
+|Tylosin tartarte              |TYLO   |
+|Vancomycin                    |VANCOM |
+
 ### Confirm drug columns
 
 Run some checks to confirm that the drug, value, and qualifier (RIS) columns 

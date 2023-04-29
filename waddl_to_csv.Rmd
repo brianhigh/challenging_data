@@ -630,6 +630,20 @@ drugs <- sapply(col_vals, names)
 drug_nums <- as.numeric(gsub('^V', '', drug_cols))
 ```
 
+These are the antimicrobial drug names (abbreviations) found:
+
+```{r drug_names}
+sort(as.character(drugs))
+```
+
+In comparing these abbreviated names with those used in the 
+[Sensititre Plate Guide](https://assets.thermofisher.com/TFS-Assets/MBD/brochures/Sensititre-Plate-Guide-Booklet-EN.pdf) 
+and some online searching, we came up with this *unverified* translation table:
+
+```{r drug_name_translation_table}
+read_csv(file.path("data", "drug_names_lookup.csv")) %>% knitr::kable()
+```
+
 ### Confirm drug columns
 
 Run some checks to confirm that the drug, value, and qualifier (RIS) columns 
