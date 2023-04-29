@@ -1,0 +1,59 @@
+Amikacin
+Amoxicillin
+Amoxicillin / Clavulanic acid 
+Ampicillin
+Azithromycin
+Bacitracin
+Cefazolin
+Cefopodoxime
+Cefovecin
+Ceftazidime
+Ceftiofur
+Cephalexin
+Cephalothin
+Chloramphenicol
+Chlortetracycline
+Ciprofloxacin
+Clarithromycin
+Clindamycin
+Danofloxacin
+Doxycycline
+Enrofloxacin
+Erythromycin
+Florfenicol
+Gamithromycin
+Gentamicin
+Imipenem
+Impenem
+Marbofloxacin
+Minocycline
+Moxifloxacin
+Neomycin
+Nitrofurantoin
+Novobiocin
+Ofloxacin
+Orbifloxacin
+Oxacillin NaCl
+Oxytetracycline
+Penicillin
+Penicillin / Novobiocin
+Piperacillin / Tazobactam
+Pirlamycin
+Polymixin B
+Pradofloxacin
+Rifampin
+Spectinomycin
+Streptomycin
+Sulphadimethoxine
+Sulphathiazole
+Tetracycline
+Tiamulin
+Ticarcillin
+Ticarcillin / Clavulanic acid 
+Tildipirosin
+Tilmicosin
+Tobramycin
+Trimethoprim / Sulfamethoxazole
+Tulathromycin
+Tylosin tartrate
+Vancomycin
