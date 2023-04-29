@@ -636,9 +636,9 @@ These are the antimicrobial drug names (abbreviations) found:
 sort(as.character(drugs))
 ```
 
-In comparing these abbreviated names with those used in the 
-[Sensititre Plate Guide](https://assets.thermofisher.com/TFS-Assets/MBD/brochures/Sensititre-Plate-Guide-Booklet-EN.pdf) 
-and some online searching, we came up with this *unverified* translation table:
+In comparing these abbreviated names with the [Antimicrobials](data/thermofisher_veterinary_antimicrobials.txt) 
+listed in the [Sensititre Plate Guide](https://assets.thermofisher.com/TFS-Assets/MBD/brochures/Sensititre-Plate-Guide-Booklet-EN.pdf) 
+and some online research, we came up with this *unverified* translation table:
 
 ```{r drug_name_translation_table}
 read_csv(file.path("data", "drug_names_lookup.csv")) %>% knitr::kable()

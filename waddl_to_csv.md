@@ -890,9 +890,9 @@ sort(as.character(drugs))
 ## [41] "TRISUL" "TULATH" "TYLO"   "VANCOM"
 ```
 
-In comparing these abbreviated names with those used in the 
-[Sensititre Plate Guide](https://assets.thermofisher.com/TFS-Assets/MBD/brochures/Sensititre-Plate-Guide-Booklet-EN.pdf) 
-and some online searching, we came up with this *unverified* translation table:
+In comparing these abbreviated names with the [Antimicrobials](data/thermofisher_veterinary_antimicrobials.txt) 
+listed in the [Sensititre Plate Guide](https://assets.thermofisher.com/TFS-Assets/MBD/brochures/Sensititre-Plate-Guide-Booklet-EN.pdf) 
+and some online research, we came up with this *unverified* translation table:
 
 
 ```r
